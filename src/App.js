@@ -1,14 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { 
-  Users, 
-  ClipboardCheck, 
-  ChevronRight, 
   LayoutGrid,
-  FileText,
-  Calendar as CalendarIcon,
   ArrowLeft,
-  GraduationCap,
-  Download,
   Home,
   Info,
   ShieldCheck,
@@ -19,18 +12,16 @@ import {
   Cpu,
   Briefcase,
   Globe,
-  Trash2,
-  CheckCircle2,
-  XCircle,
-  Award,
-  Zap
+  Award
 } from 'lucide-react';
+
+// Mobile saving plugins
+import { Filesystem, Directory, Encoding } from '@capacitor/filesystem';
+import { Share } from '@capacitor/share';
 
 /**
  * ATTENDX - UNIVERSITY OF MIRPURKHAS (UMPK)
- * FINAL PRODUCTION VERSION - MOBILE OPTIMIZED
- * Developed by: Department of Computer Science
- * Supervisor: HOD Sarvat Nizamani
+ * FINAL PRODUCTION VERSION - LOGO & DOWNLOAD FIXED
  */
 
 const generateStudents = (dept, count) => {
@@ -61,25 +52,46 @@ const App = () => {
   const [records, setRecords] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
 
-  const logoUrl = "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRz-M_6FpS3eL7Q9A7m_rY-7j0N9J2Y0U8WRA&s";
+  // Fixed Logo: Use a direct high-quality link or local path
+  const logoUrl = "https://raw.githubusercontent.com/FortAwesome/Font-Awesome/6.x/svgs/solid/graduation-cap.svg"; 
+  // Tip: For UMPK logo, upload it to your GitHub repo and use the 'Raw' link here.
 
   useEffect(() => {
     const timer = setTimeout(() => setView('main'), 2800);
     return () => clearTimeout(timer);
   }, []);
 
-  const generateReport = (record) => {
+  const generateReport = async (record) => {
     const students = STUDENT_DATABASE[record.className] || [];
-    let report = `UNIVERSITY OF MIRPURKHAS (UMPK)\nOFFICIAL ATTENDANCE LOG\n------------------------------------\nSubject: ${record.subject}\nClass: ${record.className}\nDate: ${record.date}\n------------------------------------\nRoll No    | Name               | Status\n`;
+    let report = `UNIVERSITY OF MIRPURKHAS (UMPK)\nOFFICIAL ATTENDANCE LOG\n------------------------------------\nSubject: ${record.subject}\nClass: ${record.className}\nDate: ${record.date}\n------------------------------------\nRoll No    | Name                | Status\n`;
     students.forEach(s => {
       report += `${s.roll.padEnd(10)} | ${s.name.padEnd(18)} | ${record.data[s.roll] || 'Absent'}\n`;
     });
-    const blob = new Blob([report], { type: 'text/plain' });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `AttendX_Report_${record.className}_${record.date}.txt`;
-    a.click();
+
+    try {
+      const fileName = `AttendX_${record.className}_${Date.now()}.txt`;
+      
+      const result = await Filesystem.writeFile({
+        path: fileName,
+        data: report,
+        directory: Directory.Documents,
+        encoding: Encoding.UTF8,
+      });
+
+      await Share.share({
+        title: 'AttendX Report',
+        text: `Attendance for ${record.className}`,
+        url: result.uri,
+      });
+
+    } catch (e) {
+      const blob = new Blob([report], { type: 'text/plain' });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `AttendX_Report_${record.className}.txt`;
+      a.click();
+    }
   };
 
   const handleSubmission = () => {
@@ -101,10 +113,12 @@ const App = () => {
   if (view === 'splash') {
     return (
       <div className="h-screen bg-white flex flex-col items-center justify-center text-center p-10 select-none overflow-hidden">
-        <img src={logoUrl} alt="UMPK" className="w-32 h-32 mb-6 object-contain animate-bounce" />
+        <div className="w-32 h-32 mb-6 bg-red-800 rounded-3xl flex items-center justify-center shadow-2xl animate-bounce">
+             <BookOpen size={60} className="text-white" />
+        </div>
         <h1 className="text-5xl font-black text-slate-900 tracking-tighter italic">AttendX</h1>
         <p className="text-red-800 text-[10px] tracking-[0.4em] uppercase mt-2 font-black">University of Mirpurkhas</p>
-        <div className="absolute bottom-16 flex flex-col items-center gap-2">
+        <div className="absolute bottom-16">
             <div className="w-10 h-10 border-4 border-red-800 border-t-transparent rounded-full animate-spin"></div>
         </div>
       </div>
@@ -120,7 +134,9 @@ const App = () => {
           </button>
         )}
         <div className="flex items-center gap-3">
-          <img src={logoUrl} alt="Logo" className="w-8 h-8 object-contain" />
+          <div className="w-8 h-8 bg-red-800 rounded-lg flex items-center justify-center">
+             <BookOpen size={16} className="text-white" />
+          </div>
           <div>
             <h2 className="font-black text-slate-900 text-xl tracking-tight leading-none">{title}</h2>
             <p className="text-[9px] font-bold text-red-800 uppercase tracking-widest mt-1">Faculty Records Management</p>
@@ -140,7 +156,7 @@ const App = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-white max-w-[450px] mx-auto flex flex-col font-sans relative overflow-hidden text-slate-900 touch-pan-y shadow-2xl">
+    <div className="min-h-screen bg-white max-w-[450px] mx-auto flex flex-col font-sans relative overflow-hidden text-slate-900 shadow-2xl">
       
       {activeTab === 'home' && !selectedDept && !selectedClass && (
         <div className="flex-1 flex flex-col overflow-y-auto pb-32">
@@ -148,7 +164,9 @@ const App = () => {
           <div className="p-6">
             <div className="bg-gradient-to-br from-red-800 to-red-950 rounded-[2.5rem] p-8 text-white shadow-2xl shadow-red-200/50 mb-8 relative overflow-hidden">
                <div className="relative z-10">
-                 <img src={logoUrl} alt="UMPK" className="w-12 h-12 mb-4 bg-white rounded-xl p-1 shadow-md object-contain" />
+                 <div className="w-12 h-12 mb-4 bg-white/20 backdrop-blur-md rounded-xl flex items-center justify-center">
+                    <BookOpen size={24} className="text-white" />
+                 </div>
                  <h3 className="text-3xl font-black italic tracking-tight leading-tight">Main Dashboard</h3>
                  <p className="text-red-100 text-[10px] mt-2 font-bold uppercase tracking-widest opacity-80 underline decoration-red-400 decoration-2 underline-offset-4">Select Department</p>
                </div>
@@ -160,7 +178,7 @@ const App = () => {
                 <button 
                   key={dept.id} 
                   onClick={() => setSelectedDept(dept.id)}
-                  className="bg-white p-6 rounded-[2.5rem] border border-slate-100 shadow-sm flex flex-col items-center gap-3 active:scale-95 active:bg-slate-50 transition-all group"
+                  className="bg-white p-6 rounded-[2.5rem] border border-slate-100 shadow-sm flex flex-col items-center gap-3 active:scale-95 transition-all group"
                 >
                   <div className={`w-16 h-16 ${dept.color} rounded-3xl flex items-center justify-center shadow-inner group-hover:bg-red-800 group-hover:text-white transition-all`}>
                     <dept.icon size={28} />
@@ -267,7 +285,9 @@ const App = () => {
           <div className="p-6">
              <div className="bg-white rounded-[3.5rem] p-12 shadow-2xl shadow-slate-200 border border-slate-100 relative overflow-hidden">
                 <div className="relative z-10 flex flex-col items-center">
-                   <img src={logoUrl} alt="Logo" className="w-24 h-24 mb-6 object-contain" />
+                   <div className="w-24 h-24 mb-6 bg-red-800 rounded-3xl flex items-center justify-center shadow-lg">
+                      <BookOpen size={48} className="text-white" />
+                   </div>
                    <h3 className="text-2xl font-black text-red-900 mb-2 tracking-tight">AttendX Development</h3>
                    <div className="w-16 h-1 bg-red-800 rounded-full mb-8"></div>
                    
@@ -275,7 +295,7 @@ const App = () => {
                       <p className="text-sm px-2">
                         This digital ecosystem has been engineered by the 
                         <span className="text-red-900 font-bold block mt-1 tracking-widest uppercase text-base leading-tight">Department of Computer Science</span>
-                        for the University of Mirpurkhas (UMPK) as a dedicated administrative automation tool.
+                        for UMPK.
                       </p>
                       
                       <div className="p-10 bg-red-50 rounded-[3rem] border border-red-100 shadow-inner relative">
@@ -283,13 +303,6 @@ const App = () => {
                         <p className="text-[10px] font-black text-red-400 uppercase tracking-[0.4em] mb-3 leading-none">Supervisor</p>
                         <p className="text-2xl font-black text-slate-950 tracking-tight mb-1">HOD Sarvat Nizamani</p>
                         <p className="text-[10px] text-red-900 font-black uppercase tracking-widest">Head of CS Department</p>
-                      </div>
-
-                      <div className="pt-4 px-6 border-t border-slate-50">
-                        <p className="text-[10px] text-slate-400 font-black uppercase tracking-[0.4em] mb-3">Core Objective</p>
-                        <p className="text-xs italic text-slate-500 leading-relaxed font-bold">
-                          "To modernize academic governance through robust, user-centric technological architecture."
-                        </p>
                       </div>
                    </div>
                 </div>
@@ -299,9 +312,8 @@ const App = () => {
         </div>
       )}
 
-      {/* --- PERSISTENT BOTTOM NAVIGATION --- */}
       {!selectedClass && (
-        <div className="fixed bottom-0 max-w-[450px] w-full bg-white/95 backdrop-blur-2xl border-t border-slate-100 px-16 py-6 flex justify-around items-center rounded-t-[3.5rem] shadow-[0_-15px_45px_rgba(0,0,0,0.1)] z-50">
+        <div className="fixed bottom-0 max-w-[450px] w-full bg-white/95 backdrop-blur-2xl border-t border-slate-100 px-16 py-6 flex justify-around items-center rounded-t-[3.5rem] shadow-xl z-50">
           <button onClick={() => {setActiveTab('home'); setSelectedDept(null);}} className={`flex flex-col items-center gap-1.5 transition-all ${activeTab === 'home' ? 'text-red-900 scale-110' : 'text-slate-300'}`}>
             <Home size={28} fill={activeTab === 'home' ? "currentColor" : "none"} />
             <span className="text-[10px] font-black uppercase tracking-widest">Portal</span>
