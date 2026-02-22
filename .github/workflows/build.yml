@@ -14,13 +14,13 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          # Yahan humne version 22 kar diya hai taake Capacitor error na de
+          node-version: 22
 
       - name: Install Dependencies
         run: npm install
 
       - name: Build Web Assets
-        # CI=false yahan warnings ko ignore karega taake build fail na ho
         run: CI=false npm run build
 
       - name: Capacitor Sync
