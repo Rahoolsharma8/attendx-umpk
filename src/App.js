@@ -3,16 +3,17 @@ import {
   LayoutGrid, ArrowLeft, Home, Info, ShieldCheck, Search, 
   BookOpen, Monitor, Database, Cpu, Briefcase, Globe, Award,
   ChevronDown, History, FileText, Download, Trash2, Share2, X,
-  Heart, Terminal
+  Heart, Terminal, Settings, User
 } from 'lucide-react';
 
 /**
  * ATTENDX PRO - UNIVERSITY OF MIRPURKHAS (UMPK)
  * Developed by: Computer Science Department
  * Supervisor: Sarvat Nizamani
+ * Version: 8.0 (Permanent Records & Numeric Student IDs)
  */
 
-// 1. Subjects Configuration (Semester wise map)
+// 1. Subjects Configuration (Same as before)
 const SUBJECT_MAP = {
   'CS': {
     '1': ['ICT', 'Programming Fundamentals', 'Calculus', 'English-I', 'Physics', 'Islamic Studies'],
@@ -27,35 +28,15 @@ const SUBJECT_MAP = {
   'DS': {
     '1': ['Introduction to Data Science', 'Programming', 'Linear Algebra'],
     '2': ['Data Visualization', 'Statistical Modeling', 'Python for DS']
-  },
-  'AI': {
-    '1': ['AI Basics', 'Python for AI', 'Discrete Math'],
-    '2': ['Machine Learning', 'Neural Networks', 'Logic']
-  },
-  'BBA': {
-    '1': ['Accounting', 'Management', 'Microeconomics'],
-    '2': ['Finance', 'Marketing', 'Macroeconomics']
-  },
-  'English': {
-    '1': ['Grammar', 'Composition', 'Literature'],
-    '2': ['Communication Skills', 'Criticism', 'History']
   }
 };
 
-const generateStudents = (dept, count) => {
-  const names = ["Ahmed", "Sara", "Bilal", "Dua", "Hassan", "Zainab", "Kamran", "Ayesha", "Zeeshan", "Fatima", "Usman", "Amna", "Fahad", "Iqra", "Hamza", "Maham", "Ali", "Sana", "Mustafa", "Rida"];
-  return Array.from({ length: count }, (_, i) => ({
-    roll: `${dept}-${(i + 1).toString().padStart(3, '0')}`,
-    name: `${names[i % names.length]} ${String.fromCharCode(65 + (i % 26))}.`
-  }));
-};
-
-const STUDENT_DATABASE = {
-  'CS1': generateStudents('22-CS', 50), 'CS2': generateStudents('21-CS', 30), 'CS3': generateStudents('20-CS', 20), 'CS4': generateStudents('19-CS', 46),
-  'IT1': generateStudents('22-IT', 30), 'IT2': generateStudents('21-IT', 20),
-  'DS1': generateStudents('22-DS', 25), 'DS2': generateStudents('21-DS', 35),
-  'AI1': generateStudents('22-AI', 40), 'BBA1': generateStudents('22-BBA', 45), 'English1': generateStudents('22-ENG', 30)
-};
+// 2. Numeric Students Generator (1 to 100)
+// Ab naam ki zaroorat nahi, srif numbers chalenge taake har saal update na karna pare
+const STUDENT_LIST = Array.from({ length: 100 }, (_, i) => ({
+  id: i + 1,
+  roll: (i + 1).toString()
+}));
 
 const App = () => {
   const [view, setView] = useState('splash');
@@ -69,12 +50,10 @@ const App = () => {
   const [savedRecords, setSavedRecords] = useState([]);
   const [viewingRecord, setViewingRecord] = useState(null);
 
-  // FIXED LOGO: Robust SVG Base64 image to ensure it shows on GitHub/Mobile always
-  const logoUrl = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA0ODUgNDg1Ij48cGF0aCBmaWxsPSIjOEUwMDAwIiBkPSJNMjQyLjUgMEwwIDkwdjI0NWwyNDIuNSAxNTBMODQ4NSA5MFYwIi8+PHBhdGggZmlsbD0iI2ZmZiIgZD0iTTEyMCAxMjBoMjQ1djI0NUgxMjB6Ii8+PC9zdmc+";
-
   useEffect(() => {
     const timer = setTimeout(() => setView('main'), 2800);
-    const localRecords = localStorage.getItem('attendx_v6_stable');
+    // Data kabhi reset nahi hoga jab tak manually delete na ho
+    const localRecords = localStorage.getItem('attendx_v8_permanent');
     if (localRecords) setSavedRecords(JSON.parse(localRecords));
     return () => clearTimeout(timer);
   }, []);
@@ -82,11 +61,11 @@ const App = () => {
   const handleFinalize = () => {
     if (!selectedSubject) return alert("Bhai, Subject select karna lazmi hai!");
     
-    const students = STUDENT_DATABASE[selectedDept + selectedSem] || [];
-    // FIXED FORMATTING: Stripping leading zeros (e.g., 001 becomes 1)
-    const presentRolls = students
-      .filter(s => attendance[s.roll] === 'Present')
-      .map(s => parseInt(s.roll.split('-').pop(), 10));
+    // Sirf wahi numbers jo present hain
+    const presentRolls = STUDENT_LIST
+      .filter(s => attendance[s.id] === 'Present')
+      .map(s => s.id)
+      .sort((a, b) => a - b);
 
     const recordId = `${selectedDept}_${selectedSem}_${selectedSubject.replace(/\s+/g, '_')}`;
     const existingIndex = savedRecords.findIndex(r => r.recordId === recordId);
@@ -95,20 +74,22 @@ const App = () => {
       date: date,
       presentRolls: presentRolls.join(', '),
       totalPresent: presentRolls.length,
-      totalAbsent: students.length - presentRolls.length
+      totalAbsent: 100 - presentRolls.length
     };
 
     let updatedRecords = [...savedRecords];
 
     if (existingIndex !== -1) {
+      // Append logic: Purane record mein nayi date add karna
       const dateExists = updatedRecords[existingIndex].sessions.some(s => s.date === date);
       if(dateExists) {
-        if(!window.confirm("Bhai, is date ka record pehle se hai. Overwrite karein?")) return;
+        if(!window.confirm("Is date ka record pehle se hai. Kya aap isay update karna chahte hain?")) return;
         updatedRecords[existingIndex].sessions = updatedRecords[existingIndex].sessions.filter(s => s.date !== date);
       }
       updatedRecords[existingIndex].sessions.push(newSession);
       updatedRecords[existingIndex].sessions.sort((a, b) => new Date(a.date) - new Date(b.date));
     } else {
+      // Pehli baar subject save ho raha hai
       updatedRecords = [{
         recordId,
         dept: selectedDept,
@@ -119,8 +100,8 @@ const App = () => {
     }
 
     setSavedRecords(updatedRecords);
-    localStorage.setItem('attendx_v6_stable', JSON.stringify(updatedRecords));
-    alert("Zabardast! Record save ho gaya.");
+    localStorage.setItem('attendx_v8_permanent', JSON.stringify(updatedRecords));
+    alert("Zabardast! Record permanent save ho gaya.");
     
     setAttendance({});
     setSelectedSubject('');
@@ -147,8 +128,8 @@ const App = () => {
         });
 
         await Share.share({
-          title: `Attendance: ${rec.subject}`,
-          text: `Attendance for ${rec.dept} Sem ${rec.sem}`,
+          title: `Attendance Record: ${rec.subject}`,
+          text: `Sheet for ${rec.dept} Sem ${rec.sem}`,
           url: result.uri,
         });
       } else {
@@ -165,16 +146,19 @@ const App = () => {
   };
 
   const deleteRecord = (id) => {
-    if(!window.confirm("Bhai, kya aap waqayi ye sheet history mita dena chahte hain?")) return;
+    if(!window.confirm("Bhai, kya aap waqayi is subject ki poori history mita dena chahte hain?")) return;
     const filtered = savedRecords.filter(r => r.recordId !== id);
     setSavedRecords(filtered);
-    localStorage.setItem('attendx_v6_stable', JSON.stringify(filtered));
+    localStorage.setItem('attendx_v8_permanent', JSON.stringify(filtered));
   };
 
+  // 1. SPLASH SCREEN
   if (view === 'splash') {
     return (
       <div className="h-screen bg-white flex flex-col items-center justify-center text-center p-10 select-none overflow-hidden">
-        <img src={logoUrl} alt="UMPK" className="w-32 h-32 mb-6 object-contain animate-bounce" />
+        <div className="w-32 h-32 mb-6 bg-red-800 rounded-[2.5rem] flex items-center justify-center shadow-2xl animate-bounce">
+           <BookOpen size={64} className="text-white" />
+        </div>
         <h1 className="text-5xl font-black text-slate-900 tracking-tighter italic">AttendX</h1>
         <p className="text-red-800 text-[10px] tracking-[0.4em] uppercase mt-2 font-black">University of Mirpurkhas</p>
         <div className="absolute bottom-16 border-4 border-red-800 border-t-transparent w-10 h-10 rounded-full animate-spin"></div>
@@ -204,12 +188,13 @@ const App = () => {
   return (
     <div className="min-h-screen bg-slate-50 max-w-[450px] mx-auto flex flex-col font-sans relative overflow-hidden text-slate-900 shadow-2xl">
       
+      {/* PORTAL DASHBOARD */}
       {activeTab === 'home' && !selectedDept && !selectedSem && (
         <div className="flex-1 flex flex-col overflow-y-auto pb-32 bg-white">
           <PageHeader title="UMPK Dashboard" showBack={false} />
           <div className="p-6">
             <div className="bg-gradient-to-br from-red-800 to-red-950 rounded-[2.5rem] p-8 text-white shadow-2xl mb-8 relative overflow-hidden">
-               <h3 className="text-3xl font-black italic tracking-tight">Main Portal</h3>
+               <h3 className="text-3xl font-black italic tracking-tight">University Portal</h3>
                <p className="text-red-100 text-[10px] mt-2 font-bold uppercase tracking-widest opacity-80 underline underline-offset-4 decoration-red-400">Select Department</p>
                <LayoutGrid className="absolute right-[-20px] bottom-[-20px] opacity-10" size={160} />
             </div>
@@ -232,13 +217,14 @@ const App = () => {
         </div>
       )}
 
+      {/* SEMESTER SELECTION */}
       {selectedDept && !selectedSem && (
         <div className="flex-1 flex flex-col bg-slate-50 overflow-y-auto pb-32">
           <PageHeader title={`${selectedDept} Selection`} onBack={() => setSelectedDept(null)} />
           <div className="p-6 grid grid-cols-2 gap-4 mt-4">
               {[1, 2, 3, 4, 5, 6, 7, 8].map(num => (
-                 <button key={num} onClick={() => setSelectedSem(num.toString())} className="bg-white p-8 rounded-[2.8rem] border border-slate-100 shadow-sm flex flex-col items-center justify-center gap-2 active:scale-95 transition-all group">
-                    <span className="font-black text-4xl text-slate-900 group-hover:text-red-800">{num}</span>
+                 <button key={num} onClick={() => setSelectedSem(num.toString())} className="bg-white p-8 rounded-[2.8rem] border border-slate-100 shadow-sm flex flex-col items-center justify-center gap-2 active:scale-95 transition-all group hover:border-red-400">
+                    <span className="font-black text-4xl text-slate-900 group-hover:text-red-800 transition-colors">{num}</span>
                     <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest italic">Semester</span>
                  </button>
               ))}
@@ -246,18 +232,19 @@ const App = () => {
         </div>
       )}
 
+      {/* ATTENDANCE SHEET (STUDENTS 1-100) */}
       {selectedSem && (
         <div className="flex-1 flex flex-col bg-slate-50 overflow-y-auto pb-40">
           <PageHeader title={`${selectedDept} Sem ${selectedSem}`} onBack={() => setSelectedSem(null)} />
           <div className="p-6 space-y-6">
             <div className="bg-white p-7 rounded-[2.8rem] shadow-sm border border-slate-100 space-y-5">
                 <div className="space-y-1.5">
-                  <label className="text-[10px] font-black text-red-800 uppercase tracking-widest px-1">Choose Subject</label>
+                  <label className="text-[10px] font-black text-red-800 uppercase tracking-widest px-1">Select Subject</label>
                   <div className="relative">
                     <select className="w-full p-4 bg-slate-50 rounded-2xl appearance-none outline-none font-black text-slate-800 text-lg border-2 border-transparent focus:border-red-100" value={selectedSubject} onChange={(e) => setSelectedSubject(e.target.value)}>
-                      <option value="">Select Subject...</option>
+                      <option value="">Choose Subject...</option>
                       {SUBJECT_MAP[selectedDept]?.[selectedSem]?.map(sub => <option key={sub} value={sub}>{sub}</option>)}
-                      {!SUBJECT_MAP[selectedDept]?.[selectedSem] && <option value="Core Course">Core Course</option>}
+                      {!SUBJECT_MAP[selectedDept]?.[selectedSem] && <option value="Special Session">Special Session</option>}
                     </select>
                     <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={20}/>
                   </div>
@@ -270,21 +257,26 @@ const App = () => {
 
             <div className="flex items-center gap-3 px-5 py-3 bg-white rounded-2xl border border-slate-100 shadow-sm">
                 <Search size={18} className="text-slate-400" />
-                <input placeholder="Search student..." className="bg-transparent text-sm w-full outline-none font-bold text-slate-600" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
+                <input placeholder="Search Roll Number (1-100)..." className="bg-transparent text-sm w-full outline-none font-bold text-slate-600" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
             </div>
 
             <div className="space-y-3">
-               {(STUDENT_DATABASE[selectedDept + selectedSem] || [])
-                ?.filter(s => s.name.toLowerCase().includes(searchQuery.toLowerCase()) || s.roll.toLowerCase().includes(searchQuery.toLowerCase()))
+               {STUDENT_LIST
+                ?.filter(s => s.roll.includes(searchQuery))
                 .map(s => (
-                  <div key={s.roll} className="bg-white p-6 rounded-[2.5rem] border border-slate-100 shadow-sm flex items-center justify-between">
-                    <div className="flex-1 truncate pr-4">
-                      <div className="text-[9px] font-black text-red-700 mb-0.5 uppercase tracking-tighter">{s.roll}</div>
-                      <div className="font-extrabold text-slate-900 text-lg leading-tight">{s.name}</div>
+                  <div key={s.id} className="bg-white p-6 rounded-[2.5rem] border border-slate-100 shadow-sm flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 bg-red-50 rounded-2xl flex items-center justify-center">
+                         <User size={20} className="text-red-800" />
+                      </div>
+                      <div>
+                        <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Roll No</div>
+                        <div className="font-black text-slate-900 text-xl leading-none">{s.roll}</div>
+                      </div>
                     </div>
                     <div className="flex gap-3">
-                       <button onClick={() => setAttendance(prev => ({ ...prev, [s.roll]: 'Present' }))} className={`w-14 h-14 rounded-2xl font-black transition-all border-2 flex items-center justify-center text-xl ${attendance[s.roll] === 'Present' ? 'bg-emerald-600 border-emerald-700 text-white shadow-lg shadow-emerald-100' : 'bg-slate-50 border-slate-100 text-slate-300'}`}>P</button>
-                       <button onClick={() => setAttendance(prev => ({ ...prev, [s.roll]: 'Absent' }))} className={`w-14 h-14 rounded-2xl font-black transition-all border-2 flex items-center justify-center text-xl ${attendance[s.roll] === 'Absent' ? 'bg-rose-600 border-rose-700 text-white shadow-lg shadow-rose-100' : 'bg-slate-50 border-slate-100 text-slate-300'}`}>A</button>
+                       <button onClick={() => setAttendance(prev => ({ ...prev, [s.id]: 'Present' }))} className={`w-14 h-14 rounded-2xl font-black transition-all border-2 flex items-center justify-center text-xl ${attendance[s.id] === 'Present' ? 'bg-emerald-600 border-emerald-700 text-white shadow-lg shadow-emerald-100' : 'bg-slate-50 border-slate-100 text-slate-300'}`}>P</button>
+                       <button onClick={() => setAttendance(prev => ({ ...prev, [s.id]: 'Absent' }))} className={`w-14 h-14 rounded-2xl font-black transition-all border-2 flex items-center justify-center text-xl ${attendance[s.id] === 'Absent' ? 'bg-rose-600 border-rose-700 text-white shadow-lg shadow-rose-100' : 'bg-slate-50 border-slate-100 text-slate-300'}`}>A</button>
                     </div>
                   </div>
                 ))}
@@ -298,6 +290,7 @@ const App = () => {
         </div>
       )}
 
+      {/* RECORDS HISTORY */}
       {activeTab === 'records' && (
         <div className="flex-1 flex flex-col bg-slate-50 overflow-y-auto pb-32">
           <PageHeader title="Subject History" showBack={false} />
@@ -305,22 +298,22 @@ const App = () => {
             {savedRecords.length === 0 ? (
               <div className="text-center py-20 opacity-30">
                 <FileText size={60} className="mx-auto mb-4" />
-                <p className="font-bold italic">No records found.</p>
+                <p className="font-bold italic">No sheets saved in memory.</p>
               </div>
             ) : (
               savedRecords.map(rec => (
                 <div key={rec.recordId} className="bg-white p-6 rounded-[2.5rem] shadow-sm border border-slate-100 space-y-4">
                    <div className="flex justify-between items-start">
-                      <div onClick={() => setViewingRecord(rec)} className="flex-1">
+                      <div onClick={() => setViewingRecord(rec)} className="flex-1 cursor-pointer">
                         <h4 className="font-black text-slate-900 leading-none">{rec.subject}</h4>
-                        <p className="text-[10px] font-bold text-red-800 uppercase tracking-widest mt-1.5">{rec.dept} Sem {rec.sem} | {rec.sessions.length} Sessions</p>
+                        <p className="text-[10px] font-bold text-red-800 uppercase tracking-widest mt-1.5">{rec.dept} Sem {rec.sem} | {rec.sessions.length} Lectures</p>
                       </div>
                       <div className="flex gap-2">
                         <button onClick={() => downloadRecord(rec)} className="p-2 text-slate-400 hover:text-emerald-600"><Download size={20}/></button>
                         <button onClick={() => deleteRecord(rec.recordId)} className="p-2 text-slate-200 hover:text-rose-600"><Trash2 size={18}/></button>
                       </div>
                    </div>
-                   <button onClick={() => setViewingRecord(rec)} className="w-full bg-slate-900 text-white py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest active:scale-95 transition-all">View Full Log</button>
+                   <button onClick={() => setViewingRecord(rec)} className="w-full bg-slate-900 text-white py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest active:scale-95 transition-all">View History</button>
                 </div>
               ))
             )}
@@ -328,6 +321,7 @@ const App = () => {
         </div>
       )}
 
+      {/* INTELLIGENCE INFO */}
       {activeTab === 'info' && (
         <div className="flex-1 flex flex-col bg-white overflow-y-auto pb-32">
           <PageHeader title="Intelligence Team" showBack={false} />
@@ -342,7 +336,7 @@ const App = () => {
                    </div>
                    <h3 className="text-3xl font-black italic tracking-tighter mb-2">AttendX Pro</h3>
                    <div className="h-1 w-12 bg-red-400 rounded-full mb-4"></div>
-                   <p className="text-[10px] font-bold text-red-200 uppercase tracking-[0.3em] leading-relaxed">"Academic excellence through smart administration."</p>
+                   <p className="text-[10px] font-bold text-red-200 uppercase tracking-[0.3em] leading-relaxed italic">"Academic excellence through smart administration."</p>
                 </div>
                 <div className="absolute bottom-[-20px] left-[-20px] w-40 h-40 bg-white/5 rounded-full blur-3xl animate-bounce"></div>
              </div>
@@ -364,7 +358,7 @@ const App = () => {
                    </div>
                 </div>
 
-                <div className="overflow-hidden py-4 border-y border-slate-50">
+                <div className="overflow-hidden py-4 border-y border-slate-50 relative">
                    <div className="flex gap-12 whitespace-nowrap animate-marquee">
                       <span className="flex items-center gap-2 text-[10px] font-black text-slate-400 uppercase italic"><ShieldCheck size={14}/> Secure Logic</span>
                       <span className="flex items-center gap-2 text-[10px] font-black text-slate-400 uppercase italic"><Database size={14}/> CSV Engine</span>
@@ -379,17 +373,18 @@ const App = () => {
         </div>
       )}
 
+      {/* CSV MODAL */}
       {viewingRecord && (
         <div className="fixed inset-0 bg-slate-900/90 backdrop-blur-sm z-[100] flex items-center justify-center p-6">
-          <div className="bg-white w-full max-w-[400px] rounded-[3rem] p-8 space-y-6 animate-in zoom-in-95 duration-200">
+          <div className="bg-white w-full max-w-[400px] rounded-[3rem] p-8 space-y-6 animate-in zoom-in-95 duration-200 shadow-2xl">
              <div className="flex justify-between items-center border-b border-slate-100 pb-4">
                 <div>
-                   <h3 className="font-black text-xl leading-none">Record View</h3>
+                   <h3 className="font-black text-xl leading-none italic">Sheet Preview</h3>
                    <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-1.5">{viewingRecord.subject}</p>
                 </div>
-                <button onClick={() => setViewingRecord(null)} className="p-2 bg-slate-50 rounded-full"><X size={18}/></button>
+                <button onClick={() => setViewingRecord(null)} className="p-2 bg-slate-50 rounded-full hover:bg-red-50 hover:text-red-800 transition-all"><X size={18}/></button>
              </div>
-             <div className="bg-slate-50 p-6 rounded-3xl font-mono text-[11px] text-slate-700 leading-relaxed overflow-y-auto max-h-[350px] whitespace-pre-wrap">
+             <div className="bg-slate-50 p-6 rounded-3xl font-mono text-[11px] text-slate-700 leading-relaxed overflow-y-auto max-h-[350px] whitespace-pre-wrap shadow-inner">
 {`Name: ${viewingRecord.dept}${viewingRecord.sem} Semester: ${viewingRecord.sem}\nSubject: ${viewingRecord.subject}\n-----------------------------------\n${viewingRecord.sessions.map(s => `Date: ${s.date}\nPresent Roll Numbers:\n${s.presentRolls}\n-----------------------------------`).join('\n')}`}
              </div>
              <button onClick={() => {downloadRecord(viewingRecord); setViewingRecord(null);}} className="w-full bg-red-800 text-white py-4 rounded-2xl font-black text-[11px] uppercase tracking-widest flex items-center justify-center gap-2 shadow-xl active:scale-95 transition-all"><Share2 size={16}/> Download & Share</button>
@@ -397,8 +392,9 @@ const App = () => {
         </div>
       )}
 
+      {/* NAVIGATION */}
       {!selectedSem && (
-        <div className="fixed bottom-0 max-w-[450px] w-full bg-white/95 backdrop-blur-2xl border-t border-slate-100 px-8 py-6 flex justify-around items-center rounded-t-[3.5rem] shadow-xl z-50">
+        <div className="fixed bottom-0 max-w-[450px] w-full bg-white/95 backdrop-blur-2xl border-t border-slate-100 px-8 py-6 flex justify-around items-center rounded-t-[3.5rem] shadow-[0_-15px_45px_rgba(0,0,0,0.1)] z-50">
           <button onClick={() => {setActiveTab('home'); setSelectedDept(null);}} className={`flex flex-col items-center gap-1.5 transition-all ${activeTab === 'home' ? 'text-red-900 scale-110' : 'text-slate-300'}`}>
             <Home size={28} fill={activeTab === 'home' ? "currentColor" : "none"} />
             <span className="text-[10px] font-black uppercase tracking-widest">Portal</span>
