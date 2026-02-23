@@ -10,10 +10,10 @@ import {
  * ATTENDX PRO - UNIVERSITY OF MIRPURKHAS (UMPK)
  * Developed by: Computer Science Department
  * Supervisor: Sarvat Nizamani
- * Version: 8.0 (Permanent Records & Numeric Student IDs)
+ * Version: 8.1 (Space-less Comma Formatting)
  */
 
-// 1. Subjects Configuration (Same as before)
+// 1. Subjects Configuration
 const SUBJECT_MAP = {
   'CS': {
     '1': ['ICT', 'Programming Fundamentals', 'Calculus', 'English-I', 'Physics', 'Islamic Studies'],
@@ -32,7 +32,6 @@ const SUBJECT_MAP = {
 };
 
 // 2. Numeric Students Generator (1 to 100)
-// Ab naam ki zaroorat nahi, srif numbers chalenge taake har saal update na karna pare
 const STUDENT_LIST = Array.from({ length: 100 }, (_, i) => ({
   id: i + 1,
   roll: (i + 1).toString()
@@ -52,7 +51,6 @@ const App = () => {
 
   useEffect(() => {
     const timer = setTimeout(() => setView('main'), 2800);
-    // Data kabhi reset nahi hoga jab tak manually delete na ho
     const localRecords = localStorage.getItem('attendx_v8_permanent');
     if (localRecords) setSavedRecords(JSON.parse(localRecords));
     return () => clearTimeout(timer);
@@ -61,7 +59,6 @@ const App = () => {
   const handleFinalize = () => {
     if (!selectedSubject) return alert("Bhai, Subject select karna lazmi hai!");
     
-    // Sirf wahi numbers jo present hain
     const presentRolls = STUDENT_LIST
       .filter(s => attendance[s.id] === 'Present')
       .map(s => s.id)
@@ -72,7 +69,8 @@ const App = () => {
     
     const newSession = {
       date: date,
-      presentRolls: presentRolls.join(', '),
+      // Formatting change: Removed space after comma as per user request
+      presentRolls: presentRolls.join(','), 
       totalPresent: presentRolls.length,
       totalAbsent: 100 - presentRolls.length
     };
@@ -80,7 +78,6 @@ const App = () => {
     let updatedRecords = [...savedRecords];
 
     if (existingIndex !== -1) {
-      // Append logic: Purane record mein nayi date add karna
       const dateExists = updatedRecords[existingIndex].sessions.some(s => s.date === date);
       if(dateExists) {
         if(!window.confirm("Is date ka record pehle se hai. Kya aap isay update karna chahte hain?")) return;
@@ -89,7 +86,6 @@ const App = () => {
       updatedRecords[existingIndex].sessions.push(newSession);
       updatedRecords[existingIndex].sessions.sort((a, b) => new Date(a.date) - new Date(b.date));
     } else {
-      // Pehli baar subject save ho raha hai
       updatedRecords = [{
         recordId,
         dept: selectedDept,
@@ -152,7 +148,6 @@ const App = () => {
     localStorage.setItem('attendx_v8_permanent', JSON.stringify(filtered));
   };
 
-  // 1. SPLASH SCREEN
   if (view === 'splash') {
     return (
       <div className="h-screen bg-white flex flex-col items-center justify-center text-center p-10 select-none overflow-hidden">
@@ -232,7 +227,7 @@ const App = () => {
         </div>
       )}
 
-      {/* ATTENDANCE SHEET (STUDENTS 1-100) */}
+      {/* ATTENDANCE SHEET */}
       {selectedSem && (
         <div className="flex-1 flex flex-col bg-slate-50 overflow-y-auto pb-40">
           <PageHeader title={`${selectedDept} Sem ${selectedSem}`} onBack={() => setSelectedSem(null)} />
