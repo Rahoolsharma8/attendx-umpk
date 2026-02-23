@@ -10,11 +10,9 @@ import {
  * ATTENDX PRO - UNIVERSITY OF MIRPURKHAS (UMPK)
  * Developed by: Computer Science Department
  * Supervisor: Sarvat Nizamani
- * * NOTE: For local build, run:
- * npm install @capacitor/filesystem @capacitor/share
  */
 
-// Subjects Configuration
+// 1. Subjects Configuration (Semester wise map)
 const SUBJECT_MAP = {
   'CS': {
     '1': ['ICT', 'Programming Fundamentals', 'Calculus', 'English-I', 'Physics', 'Islamic Studies'],
@@ -71,22 +69,24 @@ const App = () => {
   const [savedRecords, setSavedRecords] = useState([]);
   const [viewingRecord, setViewingRecord] = useState(null);
 
-  const logoUrl = "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRz-M_6FpS3eL7Q9A7m_rY-7j0N9J2Y0U8WRA&s";
+  // FIXED LOGO: Robust SVG Base64 image to ensure it shows on GitHub/Mobile always
+  const logoUrl = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA0ODUgNDg1Ij48cGF0aCBmaWxsPSIjOEUwMDAwIiBkPSJNMjQyLjUgMEwwIDkwdjI0NWwyNDIuNSAxNTBMODQ4NSA5MFYwIi8+PHBhdGggZmlsbD0iI2ZmZiIgZD0iTTEyMCAxMjBoMjQ1djI0NUgxMjB6Ii8+PC9zdmc+";
 
   useEffect(() => {
     const timer = setTimeout(() => setView('main'), 2800);
-    const localRecords = localStorage.getItem('attendx_v5_final');
+    const localRecords = localStorage.getItem('attendx_v6_stable');
     if (localRecords) setSavedRecords(JSON.parse(localRecords));
     return () => clearTimeout(timer);
   }, []);
 
   const handleFinalize = () => {
-    if (!selectedSubject) return alert("Subject select karna lazmi hai!");
+    if (!selectedSubject) return alert("Bhai, Subject select karna lazmi hai!");
     
     const students = STUDENT_DATABASE[selectedDept + selectedSem] || [];
+    // FIXED FORMATTING: Stripping leading zeros (e.g., 001 becomes 1)
     const presentRolls = students
       .filter(s => attendance[s.roll] === 'Present')
-      .map(s => s.roll.split('-').pop());
+      .map(s => parseInt(s.roll.split('-').pop(), 10));
 
     const recordId = `${selectedDept}_${selectedSem}_${selectedSubject.replace(/\s+/g, '_')}`;
     const existingIndex = savedRecords.findIndex(r => r.recordId === recordId);
@@ -103,7 +103,7 @@ const App = () => {
     if (existingIndex !== -1) {
       const dateExists = updatedRecords[existingIndex].sessions.some(s => s.date === date);
       if(dateExists) {
-        if(!window.confirm("Is date ka record pehle se maujood hai. Overwrite karein?")) return;
+        if(!window.confirm("Bhai, is date ka record pehle se hai. Overwrite karein?")) return;
         updatedRecords[existingIndex].sessions = updatedRecords[existingIndex].sessions.filter(s => s.date !== date);
       }
       updatedRecords[existingIndex].sessions.push(newSession);
@@ -119,8 +119,8 @@ const App = () => {
     }
 
     setSavedRecords(updatedRecords);
-    localStorage.setItem('attendx_v5_final', JSON.stringify(updatedRecords));
-    alert("Success: Record update ho gaya!");
+    localStorage.setItem('attendx_v6_stable', JSON.stringify(updatedRecords));
+    alert("Zabardast! Record save ho gaya.");
     
     setAttendance({});
     setSelectedSubject('');
@@ -134,7 +134,6 @@ const App = () => {
 
     const fileName = `AttendX_${rec.dept}_Sem${rec.sem}_${rec.subject.replace(/\s+/g, '_')}.txt`;
 
-    // Dynamic handling of Capacitor to prevent preview errors
     try {
       if (window.Capacitor && window.Capacitor.isPluginAvailable('Filesystem')) {
         const { Filesystem, Directory, Encoding } = await import('@capacitor/filesystem');
@@ -149,11 +148,11 @@ const App = () => {
 
         await Share.share({
           title: `Attendance: ${rec.subject}`,
-          text: `Record for ${rec.dept} Sem ${rec.sem}`,
+          text: `Attendance for ${rec.dept} Sem ${rec.sem}`,
           url: result.uri,
         });
       } else {
-        throw new Error("Capacitor not available");
+        throw new Error("Capacitor unavailable");
       }
     } catch (e) {
       const blob = new Blob([fileContent], { type: 'text/plain' });
@@ -166,10 +165,10 @@ const App = () => {
   };
 
   const deleteRecord = (id) => {
-    if(!window.confirm("Kya aap ye poori subject history mita dena chahte hain?")) return;
+    if(!window.confirm("Bhai, kya aap waqayi ye sheet history mita dena chahte hain?")) return;
     const filtered = savedRecords.filter(r => r.recordId !== id);
     setSavedRecords(filtered);
-    localStorage.setItem('attendx_v5_final', JSON.stringify(filtered));
+    localStorage.setItem('attendx_v6_stable', JSON.stringify(filtered));
   };
 
   if (view === 'splash') {
@@ -190,7 +189,7 @@ const App = () => {
           <button onClick={onBack} className="p-2 bg-slate-50 rounded-2xl active:scale-90"><ArrowLeft size={20}/></button>
         )}
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-red-800 rounded-xl flex items-center justify-center shadow-lg shadow-red-100">
+          <div className="w-10 h-10 bg-red-800 rounded-xl flex items-center justify-center shadow-lg shadow-red-200">
              <BookOpen size={20} className="text-white" />
           </div>
           <div>
@@ -207,10 +206,10 @@ const App = () => {
       
       {activeTab === 'home' && !selectedDept && !selectedSem && (
         <div className="flex-1 flex flex-col overflow-y-auto pb-32 bg-white">
-          <PageHeader title="Main Portal" showBack={false} />
+          <PageHeader title="UMPK Dashboard" showBack={false} />
           <div className="p-6">
             <div className="bg-gradient-to-br from-red-800 to-red-950 rounded-[2.5rem] p-8 text-white shadow-2xl mb-8 relative overflow-hidden">
-               <h3 className="text-3xl font-black italic tracking-tight">University Panel</h3>
+               <h3 className="text-3xl font-black italic tracking-tight">Main Portal</h3>
                <p className="text-red-100 text-[10px] mt-2 font-bold uppercase tracking-widest opacity-80 underline underline-offset-4 decoration-red-400">Select Department</p>
                <LayoutGrid className="absolute right-[-20px] bottom-[-20px] opacity-10" size={160} />
             </div>
@@ -331,7 +330,7 @@ const App = () => {
 
       {activeTab === 'info' && (
         <div className="flex-1 flex flex-col bg-white overflow-y-auto pb-32">
-          <PageHeader title="Dev Intelligence" showBack={false} />
+          <PageHeader title="Intelligence Team" showBack={false} />
           <div className="p-6 space-y-8">
              <div className="bg-gradient-to-br from-red-900 to-red-950 rounded-[3.5rem] p-12 text-white relative overflow-hidden shadow-2xl text-center">
                 <div className="relative z-10 flex flex-col items-center">
