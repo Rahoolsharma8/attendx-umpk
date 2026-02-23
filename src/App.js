@@ -3,14 +3,14 @@ import {
   LayoutGrid, ArrowLeft, Home, Info, ShieldCheck, Search, 
   BookOpen, Monitor, Database, Cpu, Briefcase, Globe, Award,
   ChevronDown, History, FileText, Download, Trash2, Share2, X,
-  Heart, Terminal, Settings, User
+  Heart, Terminal, User
 } from 'lucide-react';
 
 /**
  * ATTENDX PRO - UNIVERSITY OF MIRPURKHAS (UMPK)
  * Developed by: Computer Science Department
  * Supervisor: Sarvat Nizamani
- * Version: 8.1 (Space-less Comma Formatting)
+ * Version: 8.3 (Build Error Fixed & Stable Formatting)
  */
 
 // 1. Subjects Configuration
@@ -49,9 +49,10 @@ const App = () => {
   const [savedRecords, setSavedRecords] = useState([]);
   const [viewingRecord, setViewingRecord] = useState(null);
 
+  // Persistence Logic
   useEffect(() => {
     const timer = setTimeout(() => setView('main'), 2800);
-    const localRecords = localStorage.getItem('attendx_v8_permanent');
+    const localRecords = localStorage.getItem('attendx_permanent_storage');
     if (localRecords) setSavedRecords(JSON.parse(localRecords));
     return () => clearTimeout(timer);
   }, []);
@@ -69,8 +70,7 @@ const App = () => {
     
     const newSession = {
       date: date,
-      // Formatting change: Removed space after comma as per user request
-      presentRolls: presentRolls.join(','), 
+      presentRolls: presentRolls.join(','), // Space-less format: 1,2,3
       totalPresent: presentRolls.length,
       totalAbsent: 100 - presentRolls.length
     };
@@ -80,7 +80,7 @@ const App = () => {
     if (existingIndex !== -1) {
       const dateExists = updatedRecords[existingIndex].sessions.some(s => s.date === date);
       if(dateExists) {
-        if(!window.confirm("Is date ka record pehle se hai. Kya aap isay update karna chahte hain?")) return;
+        if(!window.confirm("Bhai, is date ka record pehle se hai. Overwrite karein?")) return;
         updatedRecords[existingIndex].sessions = updatedRecords[existingIndex].sessions.filter(s => s.date !== date);
       }
       updatedRecords[existingIndex].sessions.push(newSession);
@@ -96,8 +96,8 @@ const App = () => {
     }
 
     setSavedRecords(updatedRecords);
-    localStorage.setItem('attendx_v8_permanent', JSON.stringify(updatedRecords));
-    alert("Zabardast! Record permanent save ho gaya.");
+    localStorage.setItem('attendx_permanent_storage', JSON.stringify(updatedRecords));
+    alert("Record Save ho gaya!");
     
     setAttendance({});
     setSelectedSubject('');
@@ -106,16 +106,19 @@ const App = () => {
     setActiveTab('home');
   };
 
+  // Safe Download & Share (Detects Capacitor availability)
   const downloadRecord = async (rec) => {
     const fileContent = `Name: ${rec.dept}${rec.sem} Semester: ${rec.sem}\nSubject: ${rec.subject}\n-----------------------------------\n${rec.sessions.map(s => `Date: ${s.date}\nPresent Roll Numbers:\n${s.presentRolls}\n-----------------------------------`).join('\n')}\nAttendX Pro - UMPK CS Dept`;
 
     const fileName = `AttendX_${rec.dept}_Sem${rec.sem}_${rec.subject.replace(/\s+/g, '_')}.txt`;
 
     try {
-      if (window.Capacitor && window.Capacitor.isPluginAvailable('Filesystem')) {
+      // Dynamic Capacitor check to avoid build errors in web preview
+      if (window.Capacitor && window.Capacitor.isNativePlatform()) {
+        // These will be imported only if running on a real mobile
         const { Filesystem, Directory, Encoding } = await import('@capacitor/filesystem');
         const { Share } = await import('@capacitor/share');
-        
+
         const result = await Filesystem.writeFile({
           path: fileName,
           data: fileContent,
@@ -124,28 +127,33 @@ const App = () => {
         });
 
         await Share.share({
-          title: `Attendance Record: ${rec.subject}`,
+          title: `Attendance: ${rec.subject}`,
           text: `Sheet for ${rec.dept} Sem ${rec.sem}`,
           url: result.uri,
+          dialogTitle: 'Share Record',
         });
       } else {
-        throw new Error("Capacitor unavailable");
+        throw new Error("Running on Web Browser");
       }
     } catch (e) {
+      // Web Fallback for browser/preview
       const blob = new Blob([fileContent], { type: 'text/plain' });
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
       a.download = fileName;
+      document.body.appendChild(a);
       a.click();
+      document.body.removeChild(a);
+      console.log("Web Download Triggered");
     }
   };
 
   const deleteRecord = (id) => {
-    if(!window.confirm("Bhai, kya aap waqayi is subject ki poori history mita dena chahte hain?")) return;
+    if(!window.confirm("Bhai, kya aap waqayi ye history mita dena chahte hain?")) return;
     const filtered = savedRecords.filter(r => r.recordId !== id);
     setSavedRecords(filtered);
-    localStorage.setItem('attendx_v8_permanent', JSON.stringify(filtered));
+    localStorage.setItem('attendx_permanent_storage', JSON.stringify(filtered));
   };
 
   if (view === 'splash') {
@@ -173,7 +181,7 @@ const App = () => {
           </div>
           <div>
             <h2 className="font-black text-slate-900 text-xl tracking-tight leading-none uppercase">{title}</h2>
-            <p className="text-[9px] font-bold text-red-800 uppercase tracking-widest mt-1">U.M.P.K Administration</p>
+            <p className="text-[9px] font-bold text-red-800 uppercase tracking-widest mt-1 text-left">U.M.P.K Admin</p>
           </div>
         </div>
       </div>
@@ -183,13 +191,13 @@ const App = () => {
   return (
     <div className="min-h-screen bg-slate-50 max-w-[450px] mx-auto flex flex-col font-sans relative overflow-hidden text-slate-900 shadow-2xl">
       
-      {/* PORTAL DASHBOARD */}
+      {/* 1. PORTAL DASHBOARD */}
       {activeTab === 'home' && !selectedDept && !selectedSem && (
         <div className="flex-1 flex flex-col overflow-y-auto pb-32 bg-white">
-          <PageHeader title="UMPK Dashboard" showBack={false} />
+          <PageHeader title="UMPK Portal" showBack={false} />
           <div className="p-6">
-            <div className="bg-gradient-to-br from-red-800 to-red-950 rounded-[2.5rem] p-8 text-white shadow-2xl mb-8 relative overflow-hidden">
-               <h3 className="text-3xl font-black italic tracking-tight">University Portal</h3>
+            <div className="bg-gradient-to-br from-red-800 to-red-950 rounded-[2.5rem] p-8 text-white shadow-2xl mb-8 relative overflow-hidden group">
+               <h3 className="text-3xl font-black italic tracking-tight">University Panel</h3>
                <p className="text-red-100 text-[10px] mt-2 font-bold uppercase tracking-widest opacity-80 underline underline-offset-4 decoration-red-400">Select Department</p>
                <LayoutGrid className="absolute right-[-20px] bottom-[-20px] opacity-10" size={160} />
             </div>
@@ -212,7 +220,7 @@ const App = () => {
         </div>
       )}
 
-      {/* SEMESTER SELECTION */}
+      {/* 2. SEMESTER SELECTION */}
       {selectedDept && !selectedSem && (
         <div className="flex-1 flex flex-col bg-slate-50 overflow-y-auto pb-32">
           <PageHeader title={`${selectedDept} Selection`} onBack={() => setSelectedDept(null)} />
@@ -227,7 +235,7 @@ const App = () => {
         </div>
       )}
 
-      {/* ATTENDANCE SHEET */}
+      {/* 3. ATTENDANCE SHEET */}
       {selectedSem && (
         <div className="flex-1 flex flex-col bg-slate-50 overflow-y-auto pb-40">
           <PageHeader title={`${selectedDept} Sem ${selectedSem}`} onBack={() => setSelectedSem(null)} />
@@ -248,11 +256,6 @@ const App = () => {
                   <label className="text-[10px] font-black text-red-800 uppercase tracking-widest px-1">Session Date</label>
                   <input type="date" className="w-full p-4 bg-slate-50 rounded-2xl border-none outline-none font-black text-slate-800 text-base" value={date} onChange={(e) => setDate(e.target.value)} />
                 </div>
-            </div>
-
-            <div className="flex items-center gap-3 px-5 py-3 bg-white rounded-2xl border border-slate-100 shadow-sm">
-                <Search size={18} className="text-slate-400" />
-                <input placeholder="Search Roll Number (1-100)..." className="bg-transparent text-sm w-full outline-none font-bold text-slate-600" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
             </div>
 
             <div className="space-y-3">
@@ -285,7 +288,7 @@ const App = () => {
         </div>
       )}
 
-      {/* RECORDS HISTORY */}
+      {/* 4. RECORDS HISTORY */}
       {activeTab === 'records' && (
         <div className="flex-1 flex flex-col bg-slate-50 overflow-y-auto pb-32">
           <PageHeader title="Subject History" showBack={false} />
@@ -293,7 +296,7 @@ const App = () => {
             {savedRecords.length === 0 ? (
               <div className="text-center py-20 opacity-30">
                 <FileText size={60} className="mx-auto mb-4" />
-                <p className="font-bold italic">No sheets saved in memory.</p>
+                <p className="font-bold italic text-sm">No sheets saved in memory.</p>
               </div>
             ) : (
               savedRecords.map(rec => (
@@ -304,11 +307,11 @@ const App = () => {
                         <p className="text-[10px] font-bold text-red-800 uppercase tracking-widest mt-1.5">{rec.dept} Sem {rec.sem} | {rec.sessions.length} Lectures</p>
                       </div>
                       <div className="flex gap-2">
-                        <button onClick={() => downloadRecord(rec)} className="p-2 text-slate-400 hover:text-emerald-600"><Download size={20}/></button>
-                        <button onClick={() => deleteRecord(rec.recordId)} className="p-2 text-slate-200 hover:text-rose-600"><Trash2 size={18}/></button>
+                        <button onClick={() => downloadRecord(rec)} className="p-2 text-slate-400 hover:text-emerald-600 transition-all"><Download size={20}/></button>
+                        <button onClick={() => deleteRecord(rec.recordId)} className="p-2 text-slate-200 hover:text-rose-600 transition-all"><Trash2 size={18}/></button>
                       </div>
                    </div>
-                   <button onClick={() => setViewingRecord(rec)} className="w-full bg-slate-900 text-white py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest active:scale-95 transition-all">View History</button>
+                   <button onClick={() => setViewingRecord(rec)} className="w-full bg-slate-900 text-white py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest active:scale-95 transition-all shadow-md">View Sheet History</button>
                 </div>
               ))
             )}
@@ -316,16 +319,16 @@ const App = () => {
         </div>
       )}
 
-      {/* INTELLIGENCE INFO */}
+      {/* 5. PREMIUM INFO VIEW (No HOD) */}
       {activeTab === 'info' && (
         <div className="flex-1 flex flex-col bg-white overflow-y-auto pb-32">
           <PageHeader title="Intelligence Team" showBack={false} />
           <div className="p-6 space-y-8">
-             <div className="bg-gradient-to-br from-red-900 to-red-950 rounded-[3.5rem] p-12 text-white relative overflow-hidden shadow-2xl text-center">
+             <div className="bg-gradient-to-br from-red-900 to-red-950 rounded-[3.5rem] p-12 text-white relative overflow-hidden shadow-2xl text-center group">
                 <div className="relative z-10 flex flex-col items-center">
                    <div className="relative mb-6">
                       <div className="absolute -inset-4 bg-red-400/20 rounded-full blur-xl animate-pulse"></div>
-                      <div className="w-24 h-24 bg-white rounded-[2rem] flex items-center justify-center shadow-2xl">
+                      <div className="w-24 h-24 bg-white rounded-[2rem] flex items-center justify-center shadow-2xl transform group-hover:rotate-12 transition-transform">
                          <BookOpen size={48} className="text-red-900" />
                       </div>
                    </div>
@@ -368,7 +371,7 @@ const App = () => {
         </div>
       )}
 
-      {/* CSV MODAL */}
+      {/* CSV VIEW MODAL */}
       {viewingRecord && (
         <div className="fixed inset-0 bg-slate-900/90 backdrop-blur-sm z-[100] flex items-center justify-center p-6">
           <div className="bg-white w-full max-w-[400px] rounded-[3rem] p-8 space-y-6 animate-in zoom-in-95 duration-200 shadow-2xl">
@@ -382,14 +385,14 @@ const App = () => {
              <div className="bg-slate-50 p-6 rounded-3xl font-mono text-[11px] text-slate-700 leading-relaxed overflow-y-auto max-h-[350px] whitespace-pre-wrap shadow-inner">
 {`Name: ${viewingRecord.dept}${viewingRecord.sem} Semester: ${viewingRecord.sem}\nSubject: ${viewingRecord.subject}\n-----------------------------------\n${viewingRecord.sessions.map(s => `Date: ${s.date}\nPresent Roll Numbers:\n${s.presentRolls}\n-----------------------------------`).join('\n')}`}
              </div>
-             <button onClick={() => {downloadRecord(viewingRecord); setViewingRecord(null);}} className="w-full bg-red-800 text-white py-4 rounded-2xl font-black text-[11px] uppercase tracking-widest flex items-center justify-center gap-2 shadow-xl active:scale-95 transition-all"><Share2 size={16}/> Download & Share</button>
+             <button onClick={() => {downloadRecord(viewingRecord); setViewingRecord(null);}} className="w-full bg-red-900 text-white py-4 rounded-2xl font-black text-[11px] uppercase tracking-widest flex items-center justify-center gap-2 shadow-xl active:scale-95 transition-all"><Share2 size={16}/> Download & Share</button>
           </div>
         </div>
       )}
 
       {/* NAVIGATION */}
       {!selectedSem && (
-        <div className="fixed bottom-0 max-w-[450px] w-full bg-white/95 backdrop-blur-2xl border-t border-slate-100 px-8 py-6 flex justify-around items-center rounded-t-[3.5rem] shadow-[0_-15px_45px_rgba(0,0,0,0.1)] z-50">
+        <div className="fixed bottom-0 max-w-[450px] w-full bg-white/95 backdrop-blur-2xl border-t border-slate-100 px-8 py-6 flex justify-around items-center rounded-t-[3.5rem] shadow-xl z-50">
           <button onClick={() => {setActiveTab('home'); setSelectedDept(null);}} className={`flex flex-col items-center gap-1.5 transition-all ${activeTab === 'home' ? 'text-red-900 scale-110' : 'text-slate-300'}`}>
             <Home size={28} fill={activeTab === 'home' ? "currentColor" : "none"} />
             <span className="text-[10px] font-black uppercase tracking-widest">Portal</span>
