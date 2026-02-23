@@ -1,17 +1,48 @@
 import React, { useState, useEffect } from 'react';
 import { 
   LayoutGrid, ArrowLeft, Home, Info, ShieldCheck, Search, 
-  BookOpen, Monitor, Database, Cpu, Briefcase, Globe, Award 
+  BookOpen, Monitor, Database, Cpu, Briefcase, Globe, Award,
+  ChevronDown, History, FileText, Download, Trash2, Share2, X,
+  Heart, Terminal
 } from 'lucide-react';
 
-// Mobile Plugins (Ab ye kaam karenge kyunke package.json fix ho gayi hai)
-import { Filesystem, Directory, Encoding } from '@capacitor/filesystem';
-import { Share } from '@capacitor/share';
-
 /**
- * ATTENDX - UNIVERSITY OF MIRPURKHAS (UMPK)
- * FINAL PRODUCTION VERSION - LOGO & DOWNLOAD FIXED
+ * ATTENDX PRO - UNIVERSITY OF MIRPURKHAS (UMPK)
+ * Developed by: Computer Science Department
+ * Supervisor: Sarvat Nizamani
+ * * NOTE: For local build, run:
+ * npm install @capacitor/filesystem @capacitor/share
  */
+
+// Subjects Configuration
+const SUBJECT_MAP = {
+  'CS': {
+    '1': ['ICT', 'Programming Fundamentals', 'Calculus', 'English-I', 'Physics', 'Islamic Studies'],
+    '2': ['OOP', 'Discrete Structures', 'Digital Logic Design', 'English-II', 'Stats', 'Pakistan Studies'],
+    '3': ['Data Structures', 'COAL', 'Software Requirement Eng.', 'Technical Writing'],
+    '4': ['Operating Systems', 'Analysis of Algorithms', 'Database Systems', 'Linear Algebra']
+  },
+  'IT': {
+    '1': ['Introduction to IT', 'Programming', 'Basic Math', 'Communication Skills'],
+    '2': ['Database Systems', 'Software Engineering', 'Networking', 'Web Technologies']
+  },
+  'DS': {
+    '1': ['Introduction to Data Science', 'Programming', 'Linear Algebra'],
+    '2': ['Data Visualization', 'Statistical Modeling', 'Python for DS']
+  },
+  'AI': {
+    '1': ['AI Basics', 'Python for AI', 'Discrete Math'],
+    '2': ['Machine Learning', 'Neural Networks', 'Logic']
+  },
+  'BBA': {
+    '1': ['Accounting', 'Management', 'Microeconomics'],
+    '2': ['Finance', 'Marketing', 'Macroeconomics']
+  },
+  'English': {
+    '1': ['Grammar', 'Composition', 'Literature'],
+    '2': ['Communication Skills', 'Criticism', 'History']
+  }
+};
 
 const generateStudents = (dept, count) => {
   const names = ["Ahmed", "Sara", "Bilal", "Dua", "Hassan", "Zainab", "Kamran", "Ayesha", "Zeeshan", "Fatima", "Usman", "Amna", "Fahad", "Iqra", "Hamza", "Maham", "Ali", "Sana", "Mustafa", "Rida"];
@@ -23,94 +54,131 @@ const generateStudents = (dept, count) => {
 
 const STUDENT_DATABASE = {
   'CS1': generateStudents('22-CS', 50), 'CS2': generateStudents('21-CS', 30), 'CS3': generateStudents('20-CS', 20), 'CS4': generateStudents('19-CS', 46),
-  'IT1': generateStudents('22-IT', 30), 'IT2': generateStudents('21-IT', 20), 'IT3': generateStudents('20-IT', 40), 'IT4': generateStudents('19-IT', 30),
-  'DS1': generateStudents('22-DS', 25), 'DS2': generateStudents('21-DS', 35), 'DS3': generateStudents('20-DS', 20), 'DS4': generateStudents('19-DS', 30),
-  'AI1': generateStudents('22-AI', 40), 'AI2': generateStudents('21-AI', 30), 'AI3': generateStudents('20-AI', 20), 'AI4': generateStudents('19-AI', 35),
-  'BBA1': generateStudents('22-BBA', 30), 'BBA2': generateStudents('21-BBA', 25), 'BBA3': generateStudents('20-BBA', 45), 'BBA4': generateStudents('19-BBA', 30),
-  'English1': generateStudents('22-ENG', 20), 'English2': generateStudents('21-ENG', 30), 'English3': generateStudents('20-ENG', 25), 'English4': generateStudents('19-ENG', 20),
+  'IT1': generateStudents('22-IT', 30), 'IT2': generateStudents('21-IT', 20),
+  'DS1': generateStudents('22-DS', 25), 'DS2': generateStudents('21-DS', 35),
+  'AI1': generateStudents('22-AI', 40), 'BBA1': generateStudents('22-BBA', 45), 'English1': generateStudents('22-ENG', 30)
 };
 
 const App = () => {
   const [view, setView] = useState('splash');
   const [activeTab, setActiveTab] = useState('home'); 
   const [selectedDept, setSelectedDept] = useState(null);
-  const [selectedClass, setSelectedClass] = useState(null);
-  const [subject, setSubject] = useState('');
+  const [selectedSem, setSelectedSem] = useState(null);
+  const [selectedSubject, setSelectedSubject] = useState('');
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [attendance, setAttendance] = useState({});
-  const [records, setRecords] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
+  const [savedRecords, setSavedRecords] = useState([]);
+  const [viewingRecord, setViewingRecord] = useState(null);
+
+  const logoUrl = "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRz-M_6FpS3eL7Q9A7m_rY-7j0N9J2Y0U8WRA&s";
 
   useEffect(() => {
     const timer = setTimeout(() => setView('main'), 2800);
+    const localRecords = localStorage.getItem('attendx_v5_final');
+    if (localRecords) setSavedRecords(JSON.parse(localRecords));
     return () => clearTimeout(timer);
   }, []);
 
-  // --- FILE SAVE & SHARE LOGIC ---
-  const generateReport = async (record) => {
-    const students = STUDENT_DATABASE[record.className] || [];
-    let report = `UNIVERSITY OF MIRPURKHAS (UMPK)\nOFFICIAL ATTENDANCE LOG\n------------------------------------\nSubject: ${record.subject}\nClass: ${record.className}\nDate: ${record.date}\n------------------------------------\nRoll No    | Name                | Status\n`;
-    students.forEach(s => {
-      report += `${s.roll.padEnd(10)} | ${s.name.padEnd(18)} | ${record.data[s.roll] || 'Absent'}\n`;
-    });
+  const handleFinalize = () => {
+    if (!selectedSubject) return alert("Subject select karna lazmi hai!");
+    
+    const students = STUDENT_DATABASE[selectedDept + selectedSem] || [];
+    const presentRolls = students
+      .filter(s => attendance[s.roll] === 'Present')
+      .map(s => s.roll.split('-').pop());
 
-    try {
-      const fileName = `AttendX_${record.className}_${Date.now()}.txt`;
-      
-      // File save karna storage mein
-      const result = await Filesystem.writeFile({
-        path: fileName,
-        data: report,
-        directory: Directory.Documents,
-        encoding: Encoding.UTF8,
-      });
+    const recordId = `${selectedDept}_${selectedSem}_${selectedSubject.replace(/\s+/g, '_')}`;
+    const existingIndex = savedRecords.findIndex(r => r.recordId === recordId);
+    
+    const newSession = {
+      date: date,
+      presentRolls: presentRolls.join(', '),
+      totalPresent: presentRolls.length,
+      totalAbsent: students.length - presentRolls.length
+    };
 
-      // WhatsApp/Email Share option
-      await Share.share({
-        title: 'AttendX Report',
-        text: `Attendance for ${record.className} - ${record.subject}`,
-        url: result.uri,
-      });
+    let updatedRecords = [...savedRecords];
 
-    } catch (e) {
-      // Browser fallback (PC ke liye)
-      const blob = new Blob([report], { type: 'text/plain' });
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `AttendX_Report_${record.className}.txt`;
-      a.click();
+    if (existingIndex !== -1) {
+      const dateExists = updatedRecords[existingIndex].sessions.some(s => s.date === date);
+      if(dateExists) {
+        if(!window.confirm("Is date ka record pehle se maujood hai. Overwrite karein?")) return;
+        updatedRecords[existingIndex].sessions = updatedRecords[existingIndex].sessions.filter(s => s.date !== date);
+      }
+      updatedRecords[existingIndex].sessions.push(newSession);
+      updatedRecords[existingIndex].sessions.sort((a, b) => new Date(a.date) - new Date(b.date));
+    } else {
+      updatedRecords = [{
+        recordId,
+        dept: selectedDept,
+        sem: selectedSem,
+        subject: selectedSubject,
+        sessions: [newSession]
+      }, ...updatedRecords];
     }
-  };
 
-  const handleSubmission = () => {
-    if (!subject) return alert("Error: Subject title is mandatory.");
-    const students = STUDENT_DATABASE[selectedClass];
-    const finalData = {};
-    students.forEach(s => finalData[s.roll] = attendance[s.roll] || 'Absent');
-    const newRecord = { id: Date.now(), className: selectedClass, subject, date, data: finalData };
-    setRecords([newRecord, ...records]);
+    setSavedRecords(updatedRecords);
+    localStorage.setItem('attendx_v5_final', JSON.stringify(updatedRecords));
+    alert("Success: Record update ho gaya!");
     
-    // Save aur Share ko trigger karega
-    generateReport(newRecord);
-    
-    alert("Success: Attendance finalized and share menu opened.");
     setAttendance({});
-    setSubject('');
-    setSelectedClass(null);
+    setSelectedSubject('');
+    setSelectedSem(null);
     setSelectedDept(null);
     setActiveTab('home');
   };
 
-  // Splash Screen (Offline Logo fix)
+  const downloadRecord = async (rec) => {
+    const fileContent = `Name: ${rec.dept}${rec.sem} Semester: ${rec.sem}\nSubject: ${rec.subject}\n-----------------------------------\n${rec.sessions.map(s => `Date: ${s.date}\nPresent Roll Numbers:\n${s.presentRolls}\n-----------------------------------`).join('\n')}\nAttendX Pro - UMPK CS Dept`;
+
+    const fileName = `AttendX_${rec.dept}_Sem${rec.sem}_${rec.subject.replace(/\s+/g, '_')}.txt`;
+
+    // Dynamic handling of Capacitor to prevent preview errors
+    try {
+      if (window.Capacitor && window.Capacitor.isPluginAvailable('Filesystem')) {
+        const { Filesystem, Directory, Encoding } = await import('@capacitor/filesystem');
+        const { Share } = await import('@capacitor/share');
+        
+        const result = await Filesystem.writeFile({
+          path: fileName,
+          data: fileContent,
+          directory: Directory.Documents,
+          encoding: Encoding.UTF8,
+        });
+
+        await Share.share({
+          title: `Attendance: ${rec.subject}`,
+          text: `Record for ${rec.dept} Sem ${rec.sem}`,
+          url: result.uri,
+        });
+      } else {
+        throw new Error("Capacitor not available");
+      }
+    } catch (e) {
+      const blob = new Blob([fileContent], { type: 'text/plain' });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = fileName;
+      a.click();
+    }
+  };
+
+  const deleteRecord = (id) => {
+    if(!window.confirm("Kya aap ye poori subject history mita dena chahte hain?")) return;
+    const filtered = savedRecords.filter(r => r.recordId !== id);
+    setSavedRecords(filtered);
+    localStorage.setItem('attendx_v5_final', JSON.stringify(filtered));
+  };
+
   if (view === 'splash') {
     return (
       <div className="h-screen bg-white flex flex-col items-center justify-center text-center p-10 select-none overflow-hidden">
-        <div className="w-32 h-32 mb-6 bg-red-800 rounded-3xl flex items-center justify-center shadow-2xl animate-bounce">
-             <BookOpen size={60} className="text-white" />
-        </div>
+        <img src={logoUrl} alt="UMPK" className="w-32 h-32 mb-6 object-contain animate-bounce" />
         <h1 className="text-5xl font-black text-slate-900 tracking-tighter italic">AttendX</h1>
         <p className="text-red-800 text-[10px] tracking-[0.4em] uppercase mt-2 font-black">University of Mirpurkhas</p>
+        <div className="absolute bottom-16 border-4 border-red-800 border-t-transparent w-10 h-10 rounded-full animate-spin"></div>
       </div>
     );
   }
@@ -119,49 +187,45 @@ const App = () => {
     <div className="bg-white/95 backdrop-blur-md border-b border-slate-100 p-6 flex items-center justify-between sticky top-0 z-50">
       <div className="flex items-center gap-4">
         {showBack && (
-          <button onClick={onBack} className="p-2 bg-slate-50 rounded-2xl active:scale-90 transition-transform">
-            <ArrowLeft size={20} className="text-slate-700" />
-          </button>
+          <button onClick={onBack} className="p-2 bg-slate-50 rounded-2xl active:scale-90"><ArrowLeft size={20}/></button>
         )}
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 bg-red-800 rounded-lg flex items-center justify-center">
-             <BookOpen size={16} className="text-white" />
+          <div className="w-10 h-10 bg-red-800 rounded-xl flex items-center justify-center shadow-lg shadow-red-100">
+             <BookOpen size={20} className="text-white" />
           </div>
-          <h2 className="font-black text-slate-900 text-xl tracking-tight leading-none">{title}</h2>
+          <div>
+            <h2 className="font-black text-slate-900 text-xl tracking-tight leading-none uppercase">{title}</h2>
+            <p className="text-[9px] font-bold text-red-800 uppercase tracking-widest mt-1">U.M.P.K Administration</p>
+          </div>
         </div>
       </div>
     </div>
   );
 
-  const departments = [
-    { id: 'CS', name: 'CS Dept', icon: Monitor, color: 'bg-red-50 text-red-800' },
-    { id: 'IT', name: 'IT Dept', icon: Globe, color: 'bg-blue-50 text-blue-700' },
-    { id: 'DS', name: 'Data Science', icon: Database, color: 'bg-emerald-50 text-emerald-700' },
-    { id: 'AI', name: 'AI Dept', icon: Cpu, color: 'bg-indigo-50 text-indigo-700' },
-    { id: 'BBA', name: 'Business', icon: Briefcase, color: 'bg-amber-50 text-amber-700' },
-    { id: 'English', name: 'English', icon: BookOpen, color: 'bg-rose-50 text-rose-700' }
-  ];
-
   return (
-    <div className="min-h-screen bg-white max-w-[450px] mx-auto flex flex-col font-sans relative overflow-hidden text-slate-900 shadow-2xl">
+    <div className="min-h-screen bg-slate-50 max-w-[450px] mx-auto flex flex-col font-sans relative overflow-hidden text-slate-900 shadow-2xl">
       
-      {activeTab === 'home' && !selectedDept && !selectedClass && (
-        <div className="flex-1 flex flex-col overflow-y-auto pb-32">
-          <PageHeader title="UMPK AttendX" showBack={false} />
+      {activeTab === 'home' && !selectedDept && !selectedSem && (
+        <div className="flex-1 flex flex-col overflow-y-auto pb-32 bg-white">
+          <PageHeader title="Main Portal" showBack={false} />
           <div className="p-6">
             <div className="bg-gradient-to-br from-red-800 to-red-950 rounded-[2.5rem] p-8 text-white shadow-2xl mb-8 relative overflow-hidden">
-               <h3 className="text-3xl font-black italic tracking-tight">Main Dashboard</h3>
-               <p className="text-red-100 text-[10px] mt-2 font-bold uppercase tracking-widest opacity-80 underline underline-offset-4">Select Department</p>
+               <h3 className="text-3xl font-black italic tracking-tight">University Panel</h3>
+               <p className="text-red-100 text-[10px] mt-2 font-bold uppercase tracking-widest opacity-80 underline underline-offset-4 decoration-red-400">Select Department</p>
                <LayoutGrid className="absolute right-[-20px] bottom-[-20px] opacity-10" size={160} />
             </div>
-
             <div className="grid grid-cols-2 gap-4">
-              {departments.map((dept) => (
-                <button key={dept.id} onClick={() => setSelectedDept(dept.id)} className="bg-white p-6 rounded-[2.5rem] border border-slate-100 shadow-sm flex flex-col items-center gap-3 active:scale-95 transition-all">
-                  <div className={`w-16 h-16 ${dept.color} rounded-3xl flex items-center justify-center shadow-inner`}>
-                    <dept.icon size={28} />
-                  </div>
-                  <span className="font-black text-slate-800 tracking-tight text-[11px] uppercase">{dept.name}</span>
+              {[
+                { id: 'CS', name: 'CS Dept', icon: Monitor, color: 'bg-red-50 text-red-800' },
+                { id: 'IT', name: 'IT Dept', icon: Globe, color: 'bg-blue-50 text-blue-700' },
+                { id: 'DS', name: 'Data Science', icon: Database, color: 'bg-emerald-50 text-emerald-700' },
+                { id: 'AI', name: 'AI Dept', icon: Cpu, color: 'bg-indigo-50 text-indigo-700' },
+                { id: 'BBA', name: 'Business', icon: Briefcase, color: 'bg-amber-50 text-amber-700' },
+                { id: 'English', name: 'English', icon: BookOpen, color: 'bg-rose-50 text-rose-700' }
+              ].map((dept) => (
+                <button key={dept.id} onClick={() => setSelectedDept(dept.id)} className="bg-white p-6 rounded-[2.5rem] border border-slate-100 shadow-sm flex flex-col items-center gap-3 active:scale-95 transition-all group">
+                  <div className={`w-16 h-16 ${dept.color} rounded-3xl flex items-center justify-center shadow-inner group-hover:bg-red-800 group-hover:text-white transition-all`}><dept.icon size={28} /></div>
+                  <span className="font-black text-slate-800 text-[11px] uppercase tracking-tight">{dept.name}</span>
                 </button>
               ))}
             </div>
@@ -169,39 +233,52 @@ const App = () => {
         </div>
       )}
 
-      {selectedDept && !selectedClass && (
+      {selectedDept && !selectedSem && (
         <div className="flex-1 flex flex-col bg-slate-50 overflow-y-auto pb-32">
           <PageHeader title={`${selectedDept} Selection`} onBack={() => setSelectedDept(null)} />
           <div className="p-6 grid grid-cols-2 gap-4 mt-4">
-              {[1, 2, 3, 4].map(num => (
-                 <button key={num} onClick={() => setSelectedClass(`${selectedDept}${num}`)} className="bg-white p-8 rounded-[2.8rem] border border-slate-100 shadow-sm flex flex-col items-center justify-center gap-2 active:scale-95 transition-all">
-                    <span className="font-black text-4xl text-slate-900">{selectedDept}{num}</span>
-                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest italic">{STUDENT_DATABASE[`${selectedDept}${num}`]?.length || 0} Students</span>
+              {[1, 2, 3, 4, 5, 6, 7, 8].map(num => (
+                 <button key={num} onClick={() => setSelectedSem(num.toString())} className="bg-white p-8 rounded-[2.8rem] border border-slate-100 shadow-sm flex flex-col items-center justify-center gap-2 active:scale-95 transition-all group">
+                    <span className="font-black text-4xl text-slate-900 group-hover:text-red-800">{num}</span>
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest italic">Semester</span>
                  </button>
               ))}
           </div>
         </div>
       )}
 
-      {selectedClass && (
+      {selectedSem && (
         <div className="flex-1 flex flex-col bg-slate-50 overflow-y-auto pb-40">
-          <PageHeader title={selectedClass} onBack={() => setSelectedClass(null)} />
+          <PageHeader title={`${selectedDept} Sem ${selectedSem}`} onBack={() => setSelectedSem(null)} />
           <div className="p-6 space-y-6">
             <div className="bg-white p-7 rounded-[2.8rem] shadow-sm border border-slate-100 space-y-5">
-                <input placeholder="Enter Subject Name..." className="w-full p-4 bg-slate-50 rounded-2xl outline-none font-black text-slate-800 text-lg" value={subject} onChange={(e) => setSubject(e.target.value)} />
-                <input type="date" className="w-full p-4 bg-slate-50 rounded-2xl outline-none font-black text-slate-800" value={date} onChange={(e) => setDate(e.target.value)} />
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-black text-red-800 uppercase tracking-widest px-1">Choose Subject</label>
+                  <div className="relative">
+                    <select className="w-full p-4 bg-slate-50 rounded-2xl appearance-none outline-none font-black text-slate-800 text-lg border-2 border-transparent focus:border-red-100" value={selectedSubject} onChange={(e) => setSelectedSubject(e.target.value)}>
+                      <option value="">Select Subject...</option>
+                      {SUBJECT_MAP[selectedDept]?.[selectedSem]?.map(sub => <option key={sub} value={sub}>{sub}</option>)}
+                      {!SUBJECT_MAP[selectedDept]?.[selectedSem] && <option value="Core Course">Core Course</option>}
+                    </select>
+                    <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={20}/>
+                  </div>
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-black text-red-800 uppercase tracking-widest px-1">Session Date</label>
+                  <input type="date" className="w-full p-4 bg-slate-50 rounded-2xl border-none outline-none font-black text-slate-800 text-base" value={date} onChange={(e) => setDate(e.target.value)} />
+                </div>
             </div>
 
             <div className="flex items-center gap-3 px-5 py-3 bg-white rounded-2xl border border-slate-100 shadow-sm">
                 <Search size={18} className="text-slate-400" />
-                <input placeholder="Search profile..." className="bg-transparent text-sm w-full outline-none font-bold text-slate-600" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
+                <input placeholder="Search student..." className="bg-transparent text-sm w-full outline-none font-bold text-slate-600" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
             </div>
 
             <div className="space-y-3">
-               {STUDENT_DATABASE[selectedClass]
+               {(STUDENT_DATABASE[selectedDept + selectedSem] || [])
                 ?.filter(s => s.name.toLowerCase().includes(searchQuery.toLowerCase()) || s.roll.toLowerCase().includes(searchQuery.toLowerCase()))
                 .map(s => (
-                  <div key={s.roll} className="bg-white p-6 rounded-[2.5rem] border border-slate-100 shadow-sm flex items-center justify-between active:bg-slate-50 transition-all">
+                  <div key={s.roll} className="bg-white p-6 rounded-[2.5rem] border border-slate-100 shadow-sm flex items-center justify-between">
                     <div className="flex-1 truncate pr-4">
                       <div className="text-[9px] font-black text-red-700 mb-0.5 uppercase tracking-tighter">{s.roll}</div>
                       <div className="font-extrabold text-slate-900 text-lg leading-tight">{s.name}</div>
@@ -215,54 +292,133 @@ const App = () => {
             </div>
           </div>
           <div className="fixed bottom-0 max-w-[450px] w-full p-8 bg-gradient-to-t from-white via-white/95 to-transparent flex justify-center z-40">
-             <button onClick={handleSubmission} className="w-full bg-red-900 text-white py-6 rounded-[2.5rem] font-black shadow-2xl active:scale-95 transition-all uppercase tracking-widest text-sm flex items-center justify-center gap-3">
+             <button onClick={handleFinalize} className="w-full bg-red-900 text-white py-6 rounded-[2.5rem] font-black shadow-2xl active:scale-95 transition-all uppercase tracking-widest text-sm flex items-center justify-center gap-3">
                <ShieldCheck size={20} /> Authorize & Finalize Records
              </button>
           </div>
         </div>
       )}
 
-      {activeTab === 'info' && (
-        <div className="flex-1 flex flex-col bg-slate-50 overflow-y-auto pb-32 text-center">
-          <PageHeader title="Intelligence" showBack={false} />
-          <div className="p-6">
-             <div className="bg-white rounded-[3.5rem] p-12 shadow-2xl shadow-slate-200 border border-slate-100 relative overflow-hidden">
-                <div className="relative z-10 flex flex-col items-center">
-                   <div className="w-24 h-24 mb-6 bg-red-800 rounded-3xl flex items-center justify-center">
-                      <BookOpen size={48} className="text-white" />
-                   </div>
-                   <h3 className="text-2xl font-black text-red-900 mb-2 tracking-tight">AttendX Development</h3>
-                   <div className="w-16 h-1 bg-red-800 rounded-full mb-8"></div>
-                   
-                   <div className="space-y-10 text-slate-600 font-medium leading-relaxed">
-                      <p className="text-sm px-2">
-                        Engineered by the <span className="text-red-900 font-bold block mt-1 uppercase text-base">Department of Computer Science</span> for UMPK.
-                      </p>
-                      
-                      <div className="p-10 bg-red-50 rounded-[3rem] border border-red-100 shadow-inner">
-                        <Award size={36} className="text-red-800 mx-auto mb-4 opacity-30" />
-                        <p className="text-[10px] font-black text-red-400 uppercase tracking-[0.4em] mb-3">Supervisor</p>
-                        <p className="text-2xl font-black text-slate-950 tracking-tight">HOD Sarvat Nizamani</p>
+      {activeTab === 'records' && (
+        <div className="flex-1 flex flex-col bg-slate-50 overflow-y-auto pb-32">
+          <PageHeader title="Subject History" showBack={false} />
+          <div className="p-6 space-y-4">
+            {savedRecords.length === 0 ? (
+              <div className="text-center py-20 opacity-30">
+                <FileText size={60} className="mx-auto mb-4" />
+                <p className="font-bold italic">No records found.</p>
+              </div>
+            ) : (
+              savedRecords.map(rec => (
+                <div key={rec.recordId} className="bg-white p-6 rounded-[2.5rem] shadow-sm border border-slate-100 space-y-4">
+                   <div className="flex justify-between items-start">
+                      <div onClick={() => setViewingRecord(rec)} className="flex-1">
+                        <h4 className="font-black text-slate-900 leading-none">{rec.subject}</h4>
+                        <p className="text-[10px] font-bold text-red-800 uppercase tracking-widest mt-1.5">{rec.dept} Sem {rec.sem} | {rec.sessions.length} Sessions</p>
+                      </div>
+                      <div className="flex gap-2">
+                        <button onClick={() => downloadRecord(rec)} className="p-2 text-slate-400 hover:text-emerald-600"><Download size={20}/></button>
+                        <button onClick={() => deleteRecord(rec.recordId)} className="p-2 text-slate-200 hover:text-rose-600"><Trash2 size={18}/></button>
                       </div>
                    </div>
+                   <button onClick={() => setViewingRecord(rec)} className="w-full bg-slate-900 text-white py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest active:scale-95 transition-all">View Full Log</button>
                 </div>
-             </div>
+              ))
+            )}
           </div>
         </div>
       )}
 
-      {!selectedClass && (
-        <div className="fixed bottom-0 max-w-[450px] w-full bg-white/95 backdrop-blur-2xl border-t border-slate-100 px-16 py-6 flex justify-around items-center rounded-t-[3.5rem] shadow-xl z-50">
+      {activeTab === 'info' && (
+        <div className="flex-1 flex flex-col bg-white overflow-y-auto pb-32">
+          <PageHeader title="Dev Intelligence" showBack={false} />
+          <div className="p-6 space-y-8">
+             <div className="bg-gradient-to-br from-red-900 to-red-950 rounded-[3.5rem] p-12 text-white relative overflow-hidden shadow-2xl text-center">
+                <div className="relative z-10 flex flex-col items-center">
+                   <div className="relative mb-6">
+                      <div className="absolute -inset-4 bg-red-400/20 rounded-full blur-xl animate-pulse"></div>
+                      <div className="w-24 h-24 bg-white rounded-[2rem] flex items-center justify-center shadow-2xl">
+                         <BookOpen size={48} className="text-red-900" />
+                      </div>
+                   </div>
+                   <h3 className="text-3xl font-black italic tracking-tighter mb-2">AttendX Pro</h3>
+                   <div className="h-1 w-12 bg-red-400 rounded-full mb-4"></div>
+                   <p className="text-[10px] font-bold text-red-200 uppercase tracking-[0.3em] leading-relaxed">"Academic excellence through smart administration."</p>
+                </div>
+                <div className="absolute bottom-[-20px] left-[-20px] w-40 h-40 bg-white/5 rounded-full blur-3xl animate-bounce"></div>
+             </div>
+
+             <div className="space-y-6">
+                <div className="bg-slate-50 rounded-[2.5rem] p-8 border border-slate-100 relative group overflow-hidden">
+                   <Terminal className="absolute top-4 right-6 text-red-900/5 animate-pulse" size={40} />
+                   <p className="text-slate-500 text-[10px] font-black uppercase tracking-widest mb-3">System Powered By</p>
+                   <h2 className="text-xl font-black text-slate-900 leading-tight uppercase">Developed by <span className="text-red-800 italic">Computer Science Department</span></h2>
+                   <p className="font-bold text-slate-700 text-sm mt-4">University of Mirpurkhas (UMPK)</p>
+                </div>
+
+                <div className="p-8 bg-white border-2 border-red-50 rounded-[2.5rem] flex items-center gap-6 shadow-sm">
+                   <div className="w-16 h-16 bg-red-50 text-red-900 rounded-2xl flex items-center justify-center shadow-inner"><Award size={32} /></div>
+                   <div>
+                      <p className="text-[10px] font-black text-red-400 uppercase tracking-widest mb-1">Project Supervisor</p>
+                      <h4 className="text-lg font-black text-slate-900 leading-none">Sarvat Nizamani</h4>
+                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tight mt-1">Head of Computer Science</p>
+                   </div>
+                </div>
+
+                <div className="overflow-hidden py-4 border-y border-slate-50">
+                   <div className="flex gap-12 whitespace-nowrap animate-marquee">
+                      <span className="flex items-center gap-2 text-[10px] font-black text-slate-400 uppercase italic"><ShieldCheck size={14}/> Secure Logic</span>
+                      <span className="flex items-center gap-2 text-[10px] font-black text-slate-400 uppercase italic"><Database size={14}/> CSV Engine</span>
+                      <span className="flex items-center gap-2 text-[10px] font-black text-slate-400 uppercase italic"><Monitor size={14}/> Responsive UI</span>
+                      <span className="flex items-center gap-2 text-[10px] font-black text-slate-400 uppercase italic"><Globe size={14}/> UMPK Network</span>
+                   </div>
+                </div>
+             </div>
+
+             <p className="text-[9px] text-center font-black text-slate-300 uppercase tracking-[0.4em] flex items-center justify-center gap-2 pb-10">Made with <Heart size={10} className="fill-red-800 text-red-800 animate-bounce" /> in Mirpurkhas</p>
+          </div>
+        </div>
+      )}
+
+      {viewingRecord && (
+        <div className="fixed inset-0 bg-slate-900/90 backdrop-blur-sm z-[100] flex items-center justify-center p-6">
+          <div className="bg-white w-full max-w-[400px] rounded-[3rem] p-8 space-y-6 animate-in zoom-in-95 duration-200">
+             <div className="flex justify-between items-center border-b border-slate-100 pb-4">
+                <div>
+                   <h3 className="font-black text-xl leading-none">Record View</h3>
+                   <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-1.5">{viewingRecord.subject}</p>
+                </div>
+                <button onClick={() => setViewingRecord(null)} className="p-2 bg-slate-50 rounded-full"><X size={18}/></button>
+             </div>
+             <div className="bg-slate-50 p-6 rounded-3xl font-mono text-[11px] text-slate-700 leading-relaxed overflow-y-auto max-h-[350px] whitespace-pre-wrap">
+{`Name: ${viewingRecord.dept}${viewingRecord.sem} Semester: ${viewingRecord.sem}\nSubject: ${viewingRecord.subject}\n-----------------------------------\n${viewingRecord.sessions.map(s => `Date: ${s.date}\nPresent Roll Numbers:\n${s.presentRolls}\n-----------------------------------`).join('\n')}`}
+             </div>
+             <button onClick={() => {downloadRecord(viewingRecord); setViewingRecord(null);}} className="w-full bg-red-800 text-white py-4 rounded-2xl font-black text-[11px] uppercase tracking-widest flex items-center justify-center gap-2 shadow-xl active:scale-95 transition-all"><Share2 size={16}/> Download & Share</button>
+          </div>
+        </div>
+      )}
+
+      {!selectedSem && (
+        <div className="fixed bottom-0 max-w-[450px] w-full bg-white/95 backdrop-blur-2xl border-t border-slate-100 px-8 py-6 flex justify-around items-center rounded-t-[3.5rem] shadow-xl z-50">
           <button onClick={() => {setActiveTab('home'); setSelectedDept(null);}} className={`flex flex-col items-center gap-1.5 transition-all ${activeTab === 'home' ? 'text-red-900 scale-110' : 'text-slate-300'}`}>
             <Home size={28} fill={activeTab === 'home' ? "currentColor" : "none"} />
-            <span className="text-[10px] font-black uppercase">Portal</span>
+            <span className="text-[10px] font-black uppercase tracking-widest">Portal</span>
+          </button>
+          <button onClick={() => setActiveTab('records')} className={`flex flex-col items-center gap-1.5 transition-all ${activeTab === 'records' ? 'text-red-900 scale-110' : 'text-slate-300'}`}>
+            <History size={28} />
+            <span className="text-[10px] font-black uppercase tracking-widest">Records</span>
           </button>
           <button onClick={() => setActiveTab('info')} className={`flex flex-col items-center gap-1.5 transition-all ${activeTab === 'info' ? 'text-red-900 scale-110' : 'text-slate-300'}`}>
             <Info size={28} fill={activeTab === 'info' ? "currentColor" : "none"} />
-            <span className="text-[10px] font-black uppercase">About</span>
+            <span className="text-[10px] font-black uppercase tracking-widest">About</span>
           </button>
         </div>
       )}
+
+      <style dangerouslySetInnerHTML={{ __html: `
+        @keyframes marquee { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
+        .animate-marquee { display: inline-flex; animation: marquee 10s linear infinite; }
+      `}} />
     </div> 
   );
 };
