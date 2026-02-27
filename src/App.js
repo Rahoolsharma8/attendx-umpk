@@ -3,14 +3,15 @@ import {
   LayoutGrid, ArrowLeft, Home, Info, ShieldCheck, Search, 
   BookOpen, Monitor, Database, Cpu, Briefcase, Globe, Award,
   ChevronDown, History, FileText, Download, Trash2, Share2, X,
-  Heart, Terminal, User, Edit3, List, Calendar, Sparkles, Activity, Bell, Clock, UserCircle
+  Heart, Terminal, User, Edit3, List, Calendar, Sparkles, Activity, Bell, Clock, UserCircle, FileSpreadsheet
 } from 'lucide-react';
 
 /**
  * ATTENDX PRO - UNIVERSITY OF MIRPURKHAS (UMPK)
  * Developed by: Computer Science Department
  * Lead Developer: Rahool
- * Version: 18.5 (Final Production Build - Document Share Optimized)
+ * Version: 20.0 (Ultimate Mobile Download & Scroll Fix)
+ * Feature: Real-time CSV/TXT generation, Enhanced Touch Scrolling, Triple-Layer Share
  */
 
 const DEPARTMENTS_CONFIG = {
@@ -118,10 +119,9 @@ const App = () => {
   const [viewingRecord, setViewingRecord] = useState(null);
   const [notification, setNotification] = useState(null);
 
-  // Initialize Data from Storage
   useEffect(() => {
     const timer = setTimeout(() => setView('main'), 2800);
-    const localRecords = localStorage.getItem('attendx_v18_final_storage');
+    const localRecords = localStorage.getItem('attendx_final_v20');
     if (localRecords) setSavedRecords(JSON.parse(localRecords));
     return () => clearTimeout(timer);
   }, []);
@@ -132,45 +132,29 @@ const App = () => {
   };
 
   const handleFinalize = () => {
-    if (!selectedSubject) return showToast("Select a course first!");
+    if (!selectedSubject) return showToast("Subject select karein!");
     const presentRolls = STUDENT_LIST.filter(s => attendance[s.id] === 'Present').map(s => s.id).sort((a, b) => a - b);
-    
     const uniqueKey = `${selectedDept}_${selectedProgramObj?.name}_${selectedSem}_${selectedSubject.replace(/\s+/g, '_')}_${selectedBatch}`;
     
-    const newSession = { 
-      date, 
-      presentRolls: presentRolls.join(','), 
-      totalPresent: presentRolls.length 
-    };
-    
+    const newSession = { date, presentRolls: presentRolls.join(','), totalPresent: presentRolls.length };
     let updatedRecords = [...savedRecords];
     const existingIndex = updatedRecords.findIndex(r => r.uniqueKey === uniqueKey);
 
     if (existingIndex !== -1) {
       const sessionIndex = updatedRecords[existingIndex].sessions.findIndex(s => s.date === date);
-      if (sessionIndex !== -1) {
-        updatedRecords[existingIndex].sessions[sessionIndex] = newSession;
-      } else {
-        updatedRecords[existingIndex].sessions.push(newSession);
-      }
+      if (sessionIndex !== -1) updatedRecords[existingIndex].sessions[sessionIndex] = newSession;
+      else updatedRecords[existingIndex].sessions.push(newSession);
       updatedRecords[existingIndex].sessions.sort((a, b) => new Date(a.date) - new Date(b.date));
     } else {
       updatedRecords = [{ 
-        uniqueKey,
-        dept: selectedDept, 
-        program: selectedProgramObj?.name,
-        sem: selectedSem, 
-        batch: selectedBatch,
-        subject: selectedSubject, 
-        sessions: [newSession]
+        uniqueKey, dept: selectedDept, program: selectedProgramObj?.name,
+        sem: selectedSem, batch: selectedBatch, subject: selectedSubject, sessions: [newSession]
       }, ...updatedRecords];
     }
     
     setSavedRecords(updatedRecords);
-    localStorage.setItem('attendx_v18_final_storage', JSON.stringify(updatedRecords));
-    showToast("Attendance Merged & Saved!");
-    
-    // UI Reset
+    localStorage.setItem('attendx_final_v20', JSON.stringify(updatedRecords));
+    showToast("Records Merged & Saved!");
     setAttendance({});
     setSelectedSubject('');
     setIsManualSubject(false);
@@ -181,70 +165,77 @@ const App = () => {
   };
 
   const formatReportContent = (rec) => {
-    let content = `Name: ${rec.dept}\n`;
+    let content = `Name: ${rec.dept} , Semester: ${rec.sem} , Batch: ${rec.batch}\n`;
     content += `Program: ${rec.program}\n`;
-    content += `Semester: ${rec.sem}\n`;
-    content += `Batch: ${rec.batch}\n`;
     content += `Subject: ${rec.subject}\n`;
-    content += `Date Generated: ${new Date().toISOString().split('T')[0]}\n`;
     content += `------------------------------------------\n`;
-    
     rec.sessions.forEach(s => {
-      content += `Date: ${s.date}\n`;
-      content += `Present Roll Numbers:\n`;
-      content += `${s.presentRolls}\n`;
+      content += `Date: ${s.date}\nPresent Roll Numbers:\n${s.presentRolls}\n`;
       content += `------------------------------------------\n`;
-      content += `-----\n`;
     });
-    
     content += `UMPK AttendX Pro Official Report`;
     return content;
   };
 
-  const handleShareSystem = async (rec) => {
-    const fileContent = formatReportContent(rec);
-    const fileName = `Attendance_${rec.dept}_${rec.subject.replace(/\s+/g, '_')}.txt`;
-    
+  const formatCSVContent = (rec) => {
+    let csv = `Date,Present Roll Numbers,Total Present\n`;
+    rec.sessions.forEach(s => {
+      csv += `${s.date},"${s.presentRolls}",${s.totalPresent}\n`;
+    });
+    return csv;
+  };
+
+  const handleShareSystem = async (rec, type) => {
+    const isCSV = type === 'csv';
+    const content = isCSV ? formatCSVContent(rec) : formatReportContent(rec);
+    const fileName = `Attendance_${rec.dept}_${rec.batch}.${isCSV ? 'csv' : 'txt'}`;
+    const mimeType = isCSV ? 'text/csv' : 'text/plain';
+
     try {
-      const file = new File([fileContent], fileName, { type: 'text/plain' });
-      
+      const file = new File([content], fileName, { type: mimeType });
       if (navigator.canShare && navigator.canShare({ files: [file] })) {
         await navigator.share({
           files: [file],
           title: `Attendance Report`,
-          text: `Merged Attendance for ${rec.subject}`
+          text: `UMPK AttendX Report - ${rec.subject}`
         });
-        showToast("Share menu opened!");
       } else {
-        // WhatsApp Text Fallback if file sharing is unsupported
-        window.open(`https://wa.me/?text=${encodeURIComponent(fileContent)}`, '_blank');
+        // WhatsApp Text Fallback
+        const encoded = encodeURIComponent(formatReportContent(rec));
+        window.open(`https://wa.me/?text=${encoded}`, '_blank');
       }
     } catch (e) {
-      window.open(`https://wa.me/?text=${encodeURIComponent(fileContent)}`, '_blank');
+        showToast("Browser restricted sharing.");
     }
   };
 
-  const handleDownloadFile = (rec) => {
-    const fileContent = formatReportContent(rec);
-    const fileName = `Attendance_${rec.dept}_${rec.subject.replace(/\s+/g, '_')}.txt`;
-    const blob = new Blob([fileContent], { type: 'text/plain;charset=utf-8' });
+  const handleDownloadDirect = (rec, type) => {
+    const isCSV = type === 'csv';
+    const content = isCSV ? formatCSVContent(rec) : formatReportContent(rec);
+    const fileName = `Attendance_${rec.dept}_${rec.batch}.${isCSV ? 'csv' : 'txt'}`;
+    const blob = new Blob([content], { type: isCSV ? 'text/csv;charset=utf-8' : 'text/plain;charset=utf-8' });
+    
+    // Fallback for mobile download
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
+    a.style.display = 'none';
     a.href = url;
     a.download = fileName;
     document.body.appendChild(a);
     a.click();
-    window.URL.revokeObjectURL(url);
-    document.body.removeChild(a);
-    showToast("File Saved Locally!");
+    setTimeout(() => {
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
+    }, 100);
+    showToast("Download Triggered!");
   };
 
   const deleteRecord = (key) => {
-    if(!window.confirm("Bhai, kya aap waqayi ye history mita dena chahte hain?")) return;
+    if(!window.confirm("Bhai, kya aap waqayi ye history delete karna chahte hain?")) return;
     const updated = savedRecords.filter(r => r.uniqueKey !== key);
     setSavedRecords(updated);
-    localStorage.setItem('attendx_v18_final_storage', JSON.stringify(updated));
-    showToast("Deleted Permanently");
+    localStorage.setItem('attendx_final_v20', JSON.stringify(updated));
+    showToast("History Deleted");
   };
 
   const GlobalFooter = () => (
@@ -258,19 +249,13 @@ const App = () => {
     </div>
   );
 
-  const MarqueeFeed = () => (
-    <div className="overflow-hidden py-5 border-y border-slate-100 relative bg-slate-50/50 rounded-2xl text-left mt-4">
-      <div className="flex gap-20 whitespace-nowrap animate-marquee">
-        {[1, 2].map(i => (
-          <React.Fragment key={i}>
-            <span className="flex items-center gap-4 text-[11px] font-black text-slate-400 uppercase tracking-widest"><Monitor size={16} className="text-[#800000]"/> INTELLIGENCE ENGINE</span>
-            <span className="flex items-center gap-4 text-[11px] font-black text-slate-400 uppercase tracking-widest"><Activity size={16} className="text-[#800000]"/> RESPONSIVE CORE</span>
-            <span className="flex items-center gap-4 text-[11px] font-black text-slate-400 uppercase tracking-widest"><Globe size={16} className="text-[#800000]"/> UMPK NETWORK</span>
-            <span className="flex items-center gap-4 text-[11px] font-black text-slate-400 uppercase tracking-widest"><ShieldCheck size={16} className="text-[#800000]"/> SECURE ACCESS</span>
-          </React.Fragment>
-        ))}
-      </div>
-    </div>
+  const MarqueeItem = () => (
+    <>
+      <span className="flex items-center gap-4 text-[11px] font-black text-slate-400 uppercase tracking-widest"><Monitor size={16} className="text-[#800000]"/> INTELLIGENCE ENGINE</span>
+      <span className="flex items-center gap-4 text-[11px] font-black text-slate-400 uppercase tracking-widest"><Activity size={16} className="text-[#800000]"/> RESPONSIVE CORE</span>
+      <span className="flex items-center gap-4 text-[11px] font-black text-slate-400 uppercase tracking-widest"><Globe size={16} className="text-[#800000]"/> UMPK NETWORK</span>
+      <span className="flex items-center gap-4 text-[11px] font-black text-slate-400 uppercase tracking-widest"><ShieldCheck size={16} className="text-[#800000]"/> SECURE ACCESS</span>
+    </>
   );
 
   if (view === 'splash') {
@@ -335,7 +320,7 @@ const App = () => {
         </div>
       )}
 
-      {/* 2. PROGRAM SELECTION */}
+      {/* 2. PROGRAMS */}
       {selectedDept && !selectedProgramObj && (
         <div className="flex-1 flex flex-col bg-white overflow-y-auto pb-32 animate-in slide-in-from-right-10 duration-500">
           <PageHeader title={`${selectedDept} PROGRAMS`} onBack={() => setSelectedDept(null)} />
@@ -343,7 +328,7 @@ const App = () => {
              {DEPARTMENTS_CONFIG[selectedDept].programs.map((prog, i) => (
                <button key={i} onClick={() => setSelectedProgramObj(prog)} className="w-full bg-slate-50/50 p-6 rounded-[2rem] border border-slate-100 shadow-sm flex items-center gap-4 active:scale-95 transition-all text-left">
                   <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-[#800000] shadow-sm"><Clock size={20}/></div>
-                  <span className="font-black text-slate-800 text-[11px] uppercase tracking-tight leading-tight">{prog.name}</span>
+                  <span className="font-black text-slate-800 text-[11px] uppercase tracking-tight leading-tight text-left">{prog.name}</span>
                </button>
              ))}
           </div>
@@ -351,15 +336,15 @@ const App = () => {
         </div>
       )}
 
-      {/* 3. DYNAMIC SEMESTERS */}
+      {/* 3. SEMESTERS */}
       {selectedProgramObj && !selectedSem && (
         <div className="flex-1 flex flex-col bg-white overflow-y-auto pb-32 animate-in slide-in-from-right-10 duration-500">
           <PageHeader title={`CHOOSE SEMESTER`} onBack={() => setSelectedProgramObj(null)} />
           <div className="p-5 grid grid-cols-2 gap-4 mt-2 text-center">
               {selectedProgramObj.sems.map(num => (
                  <button key={num} onClick={() => setSelectedSem(num.toString())} className="bg-slate-50/50 p-7 rounded-[2rem] border border-slate-100 shadow-sm flex flex-col items-center justify-center gap-1 active:scale-95 transition-all hover:border-[#800000] text-center">
-                    <span className="font-black text-4xl text-slate-900 leading-none">{num}</span>
-                    <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-1">SEMESTER</span>
+                    <span className="font-black text-4xl text-slate-900 leading-none text-center">{num}</span>
+                    <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-1 text-center">SEMESTER</span>
                  </button>
               ))}
           </div>
@@ -367,13 +352,14 @@ const App = () => {
         </div>
       )}
 
-      {/* 4. MARKING SHEET */}
+      {/* 4. MARKING SHEET (SCROLL FIXED) */}
       {selectedSem && (
-        <div className="flex-1 flex flex-col bg-slate-50 overflow-y-auto pb-48 animate-in slide-in-from-right-10 duration-500 text-left overscroll-none">
+        <div className="flex-1 flex flex-col overflow-hidden animate-in slide-in-from-right-10 duration-500 bg-slate-50">
           <PageHeader title={`${selectedDept} S${selectedSem}`} onBack={() => setSelectedSem(null)} />
-          <div className="p-5 space-y-4">
+          
+          <div className="flex-1 overflow-y-auto p-5 pb-48 space-y-4 overscroll-contain touch-pan-y" style={{ WebkitOverflowScrolling: 'touch' }}>
             <div className="bg-white p-6 rounded-[2.2rem] shadow-sm border border-slate-100 space-y-4 text-left">
-                <div className="space-y-1.5 text-left">
+                <div className="space-y-1.5">
                   <div className="flex justify-between items-center px-1">
                     <label className="text-[9px] font-black text-[#800000] uppercase tracking-widest text-left">COURSE</label>
                     <button onClick={() => { setIsManualSubject(!isManualSubject); setSelectedSubject(''); }} className="text-[8px] font-black text-blue-600 uppercase bg-blue-50 px-2 py-1 rounded-md">
@@ -396,13 +382,13 @@ const App = () => {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4 text-left">
+                <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-1.5 text-left">
-                    <label className="text-[9px] font-black text-[#800000] uppercase tracking-widest text-left">DATE</label>
+                    <label className="text-[9px] font-black text-[#800000] uppercase tracking-widest">DATE</label>
                     <input type="date" className="w-full p-4 bg-slate-50 rounded-xl border-none outline-none font-bold text-slate-800 text-sm" value={date} onChange={(e) => setDate(e.target.value)} />
                   </div>
                   <div className="space-y-1.5 text-left">
-                    <label className="text-[9px] font-black text-[#800000] uppercase tracking-widest text-left">BATCH</label>
+                    <label className="text-[9px] font-black text-[#800000] uppercase tracking-widest">BATCH</label>
                     <input type="text" placeholder="e.g. 2k23" className="w-full p-4 bg-slate-50 rounded-xl border-none outline-none font-bold text-slate-800 text-sm" value={selectedBatch} onChange={(e) => setSelectedBatch(e.target.value)} />
                   </div>
                 </div>
@@ -413,7 +399,8 @@ const App = () => {
               <input type="text" placeholder="Search Roll Number..." className="w-full p-4 pl-12 bg-white rounded-xl border border-slate-100 shadow-sm outline-none text-xs font-bold" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
             </div>
 
-            <div className="space-y-2 text-left">
+            {/* List with minimum height to force touch scrolling context */}
+            <div className="space-y-2 text-left min-h-[400px]">
                {STUDENT_LIST?.filter(s => s.roll.includes(searchQuery)).map(s => (
                   <div key={s.id} className={`bg-white p-4 rounded-[1.8rem] border transition-all flex items-center justify-between shadow-sm ${attendance[s.id] === 'Present' ? 'border-emerald-200 bg-emerald-50/20' : attendance[s.id] === 'Absent' ? 'border-rose-200 bg-rose-50/20' : 'border-slate-100'}`}>
                     <div className="flex items-center gap-4 text-left">
@@ -428,7 +415,8 @@ const App = () => {
                 ))}
             </div>
           </div>
-          <div className="fixed bottom-0 max-w-[450px] w-full p-8 bg-gradient-to-t from-white via-white/95 to-transparent flex justify-center z-40 text-center">
+          
+          <div className="fixed bottom-0 max-w-[450px] w-full p-8 bg-gradient-to-t from-white via-white/95 to-transparent flex justify-center z-40">
              <button onClick={handleFinalize} className="w-full bg-[#800000] text-white py-5 rounded-[2.2rem] font-black shadow-2xl active:scale-95 transition-all uppercase tracking-widest text-xs flex items-center justify-center gap-3 border-b-4 border-black/20 text-center">
                <ShieldCheck size={20} /> AUTHORIZE RECORDS
              </button>
@@ -444,7 +432,7 @@ const App = () => {
             {savedRecords.length === 0 ? (
               <div className="text-center py-24 opacity-20 flex flex-col items-center">
                 <FileText size={60} className="mb-4 text-slate-400" />
-                <p className="font-bold text-[10px] uppercase tracking-widest text-center">No Records Stored</p>
+                <p className="font-bold text-[10px] uppercase tracking-widest">No Records Found</p>
               </div>
             ) : (
               savedRecords.map((rec) => (
@@ -454,16 +442,16 @@ const App = () => {
                         <h4 className="font-black text-slate-900 text-base leading-none tracking-tight text-left mb-2 uppercase">{rec.subject}</h4>
                         <div className="flex flex-col gap-1 text-left">
                           <p className="text-[8px] font-bold text-[#800000] uppercase tracking-widest text-left">{rec.dept} • {rec.batch}</p>
-                          <p className="text-[8px] font-bold text-slate-400 uppercase tracking-tight text-left">{rec.program}</p>
-                          <p className="text-[9px] font-black text-slate-800 text-left">Sessions: {rec.sessions.length}</p>
+                          <p className="text-[8px] font-bold text-slate-400 uppercase tracking-tight text-left leading-none">{rec.program}</p>
+                          <p className="text-[9px] font-black text-slate-800 text-left">Stored Dates: {rec.sessions.length}</p>
                         </div>
                       </div>
                       <div className="flex gap-2">
-                        <button onClick={() => handleShareSystem(rec)} className="p-2.5 bg-slate-50 rounded-xl text-slate-400 active:text-[#800000] transition-all"><Share2 size={20}/></button>
+                        <button onClick={() => handleShareSystem(rec, 'csv')} className="p-2.5 bg-slate-50 rounded-xl text-slate-400 active:text-emerald-600 transition-all"><FileSpreadsheet size={20}/></button>
                         <button onClick={() => deleteRecord(rec.uniqueKey)} className="p-2.5 bg-slate-50 rounded-xl text-slate-200 active:text-rose-600 transition-all"><Trash2 size={18}/></button>
                       </div>
                    </div>
-                   <button onClick={() => setViewingRecord(rec)} className="w-full bg-[#800000]/5 text-[#800000] py-3.5 rounded-xl font-black text-[9px] uppercase tracking-[0.2em] active:bg-[#800000] active:text-white transition-all shadow-sm">VIEW SESSION LOGS</button>
+                   <button onClick={() => setViewingRecord(rec)} className="w-full bg-[#800000]/5 text-[#800000] py-3.5 rounded-xl font-black text-[9px] uppercase tracking-[0.2em] active:bg-[#800000] active:text-white transition-all shadow-sm uppercase">OPEN MERGED SHEET</button>
                 </div>
               ))
             )}
@@ -479,7 +467,7 @@ const App = () => {
           <div className="p-5 space-y-6 flex-1 text-center">
              <div className="bg-gradient-to-br from-[#800000] to-[#4a0404] rounded-[2.5rem] p-10 text-white shadow-2xl text-center relative overflow-hidden">
                 <div className="relative z-10 flex flex-col items-center">
-                   <div className="w-20 h-20 bg-white/10 backdrop-blur-md border border-white/20 rounded-[1.8rem] flex items-center justify-center mb-4">
+                   <div className="w-20 h-20 bg-white/10 backdrop-blur-md border border-white/20 rounded-[1.8rem] flex items-center justify-center mb-4 text-center">
                       <BookOpen size={40} className="text-white" />
                    </div>
                    <h3 className="text-3xl font-black tracking-tighter mb-1 uppercase leading-none text-center">AttendX Pro</h3>
@@ -492,42 +480,33 @@ const App = () => {
              <div className="space-y-4 px-1 text-left">
                 <div className="bg-slate-50 rounded-[2.2rem] p-8 border border-slate-100 shadow-sm text-left relative overflow-hidden">
                    <p className="text-slate-400 text-[9px] font-black uppercase tracking-[0.2em] mb-4 text-left uppercase">SYSTEM POWERED BY</p>
-                   <h2 className="text-[18px] font-black text-slate-800 leading-tight uppercase tracking-tight mb-6 text-left">
-                    INTELLIGENT CORE SYSTEMS
-                   </h2>
-                   
+                   <h2 className="text-[18px] font-black text-slate-800 leading-tight uppercase tracking-tight mb-6 text-left">INTELLIGENT CORE SYSTEMS</h2>
                    <div className="h-[1px] w-full bg-slate-200 mb-6 opacity-50"></div>
-
                    <p className="text-slate-400 text-[9px] font-black uppercase tracking-[0.2em] mb-4 text-left uppercase">DEVELOPED BY</p>
-                   <h2 className="text-[18px] font-black text-slate-800 leading-tight uppercase tracking-tight text-left">
-                    DEPARTMENT OF <span className="text-[#800000]">COMPUTER SCIENCE</span>
-                   </h2>
-                   
-                   <div className="flex items-center gap-3 mt-5 bg-white p-3 rounded-2xl border border-slate-100 shadow-sm text-left">
-                      <div className="w-10 h-10 bg-[#800000] rounded-xl flex items-center justify-center text-white">
-                         <UserCircle size={24}/>
-                      </div>
-                      <div className="text-left">
+                   <h2 className="text-[18px] font-black text-slate-800 leading-tight uppercase tracking-tight text-left">DEPARTMENT OF <span className="text-[#800000]">COMPUTER SCIENCE</span></h2>
+                   <div className="flex items-center gap-3 mt-5 bg-white p-3 rounded-2xl border border-slate-100 shadow-sm text-left text-left">
+                      <div className="w-10 h-10 bg-[#800000] rounded-xl flex items-center justify-center text-white text-center"><UserCircle size={24}/></div>
+                      <div className="text-left text-left">
                          <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1 text-left">Lead Developer</p>
-                         <p className="font-black text-slate-900 text-base leading-none text-left">Rahool</p>
+                         <p className="font-black text-slate-900 text-base leading-none text-left uppercase">Rahool</p>
                       </div>
                    </div>
-                   
                    <p className="font-bold text-slate-400 text-[10px] mt-6 uppercase tracking-widest text-left">University of Mirpurkhas (UMPK)</p>
                 </div>
-
-                <div className="p-8 bg-white border border-slate-100 rounded-[2.2rem] flex items-center gap-6 shadow-sm active:bg-slate-50 transition-colors text-left text-left">
-                   <div className="w-16 h-16 bg-red-50 text-[#800000] rounded-2xl flex items-center justify-center shadow-inner text-center">
-                      <Award size={32} />
-                   </div>
-                   <div className="text-left flex-1">
-                      <p className="text-[9px] font-black text-red-300 uppercase tracking-[0.2em] mb-1 text-left text-left text-left">PROJECT SUPERVISOR</p>
+                <div className="p-8 bg-white border border-slate-100 rounded-[2.2rem] flex items-center gap-6 shadow-sm active:bg-slate-50 transition-colors text-left text-left text-left">
+                   <div className="w-16 h-16 bg-red-50 text-[#800000] rounded-2xl flex items-center justify-center shadow-inner text-center"><Award size={32} /></div>
+                   <div className="text-left flex-1 text-left">
+                      <p className="text-[9px] font-black text-red-300 uppercase tracking-[0.2em] mb-1 text-left text-left">PROJECT SUPERVISOR</p>
                       <h4 className="text-xl font-black text-slate-900 leading-none tracking-tighter text-left">Sarvat Nizamani</h4>
-                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-2 leading-relaxed text-left text-left">HEAD OF COMPUTER SCIENCE</p>
+                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-2 leading-relaxed text-left uppercase">HEAD OF COMPUTER SCIENCE</p>
                    </div>
                 </div>
-
-                <MarqueeFeed />
+                <div className="overflow-hidden py-5 border-y border-slate-100 relative bg-slate-50/50 rounded-2xl text-left">
+                   <div className="flex gap-20 whitespace-nowrap animate-marquee">
+                      <MarqueeItem />
+                      <MarqueeItem />
+                   </div>
+                </div>
              </div>
           </div>
           <GlobalFooter />
@@ -536,25 +515,30 @@ const App = () => {
 
       {/* SHEET PREVIEW MODAL */}
       {viewingRecord && (
-        <div className="fixed inset-0 bg-slate-900/90 backdrop-blur-xl z-[600] flex items-center justify-center p-4 animate-in fade-in duration-300 text-left">
+        <div className="fixed inset-0 bg-slate-900/90 backdrop-blur-xl z-[600] flex items-center justify-center p-4 animate-in fade-in duration-300">
           <div className="bg-white w-[94%] max-w-[360px] rounded-[3rem] p-7 space-y-6 animate-in zoom-in-95 duration-200 shadow-2xl relative text-left">
              <div className="flex justify-between items-center border-b border-slate-50 pb-5 text-left text-left">
                 <div className="text-left text-left">
-                   <h3 className="font-black text-2xl leading-none uppercase tracking-tighter text-slate-900 text-left text-left">Sheet Preview</h3>
+                   <h3 className="font-black text-2xl leading-none uppercase tracking-tighter text-slate-900 text-left text-left uppercase">Sheet Preview</h3>
                    <p className="text-[9px] font-bold text-slate-400 uppercase tracking-[0.2em] mt-2 text-left">{viewingRecord.subject}</p>
                 </div>
                 <button onClick={() => setViewingRecord(null)} className="p-2.5 bg-slate-50 rounded-full hover:bg-red-50 hover:text-[#800000] active:scale-90 transition-all"><X size={20}/></button>
              </div>
-             <div className="bg-slate-50 p-6 rounded-[2.2rem] font-mono text-[13px] text-slate-700 leading-relaxed overflow-y-auto max-h-[300px] whitespace-pre-wrap border border-slate-100 text-left">
+             <div className="bg-slate-50 p-6 rounded-[2.2rem] font-mono text-[12px] text-slate-700 leading-relaxed overflow-y-auto max-h-[300px] whitespace-pre-wrap border border-slate-100 text-left uppercase">
                 {formatReportContent(viewingRecord)}
              </div>
              <div className="grid grid-cols-1 gap-3.5">
-                <button onClick={() => handleShareSystem(viewingRecord)} className="w-full bg-slate-900 text-white py-4.5 rounded-[1.8rem] font-black text-[11px] uppercase tracking-[0.1em] flex items-center justify-center gap-3 active:scale-95 transition-all shadow-xl">
-                  <Share2 size={18}/> SHARE ON WHATSAPP
+                <button onClick={() => handleShareSystem(viewingRecord, 'csv')} className="w-full bg-slate-900 text-white py-4.5 rounded-[1.8rem] font-black text-[11px] uppercase tracking-[0.1em] flex items-center justify-center gap-3 active:scale-95 transition-all shadow-xl">
+                  <FileSpreadsheet size={18}/> SHARE CSV ON WHATSAPP
                 </button>
-                <button onClick={() => handleDownloadFile(viewingRecord)} className="w-full bg-[#800000] text-white py-4.5 rounded-[1.8rem] font-black text-[11px] uppercase tracking-[0.1em] flex items-center justify-center gap-3 active:scale-95 transition-all shadow-xl">
-                  <Download size={18}/> DOWNLOAD REPORT (.TXT)
-                </button>
+                <div className="grid grid-cols-2 gap-3">
+                   <button onClick={() => handleShareSystem(viewingRecord, 'txt')} className="w-full bg-slate-100 text-slate-600 py-3.5 rounded-[1.5rem] font-black text-[10px] uppercase tracking-[0.1em] flex items-center justify-center gap-2 active:bg-slate-200 transition-all">
+                      <Share2 size={16}/> SHARE TXT
+                   </button>
+                   <button onClick={() => handleDownloadDirect(viewingRecord, 'txt')} className="w-full bg-slate-100 text-slate-600 py-3.5 rounded-[1.5rem] font-black text-[10px] uppercase tracking-[0.1em] flex items-center justify-center gap-2 active:bg-slate-200 transition-all">
+                      <Download size={16}/> DOWNLOAD
+                   </button>
+                </div>
              </div>
           </div>
         </div>
@@ -569,11 +553,11 @@ const App = () => {
           </button>
           <button onClick={() => setActiveTab('records')} className={`flex flex-col items-center gap-2 transition-all ${activeTab === 'records' ? 'text-[#800000] scale-110' : 'text-slate-300'} text-center`}>
             <div className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-all ${activeTab === 'records' ? 'bg-red-50 shadow-sm' : 'bg-transparent'} text-center`}><History size={26} /></div>
-            <span className="text-[9px] font-black uppercase tracking-[0.1em] text-center">RECORDS</span>
+            <span className="text-[9px] font-black uppercase tracking-[0.1em] text-center text-center">RECORDS</span>
           </button>
           <button onClick={() => setActiveTab('info')} className={`flex flex-col items-center gap-2 transition-all ${activeTab === 'info' ? 'text-[#800000] scale-110' : 'text-slate-300'} text-center`}>
             <div className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-all ${activeTab === 'info' ? 'bg-[#800000] text-white shadow-lg' : 'bg-transparent'} text-center`}><Info size={26} fill={activeTab === 'info' ? "currentColor" : "none"} /></div>
-            <span className="text-[9px] font-black uppercase tracking-[0.1em] text-center text-center">ABOUT</span>
+            <span className="text-[9px] font-black uppercase tracking-[0.1em] text-center text-center text-center text-center">ABOUT</span>
           </button>
         </div>
       )}
@@ -588,5 +572,14 @@ const App = () => {
     </div> 
   );
 };
+
+const MarqueeItem = () => (
+  <>
+    <span className="flex items-center gap-4 text-[11px] font-black text-slate-400 uppercase tracking-widest"><Monitor size={16} className="text-[#800000]"/> INTELLIGENCE ENGINE</span>
+    <span className="flex items-center gap-4 text-[11px] font-black text-slate-400 uppercase tracking-widest"><Activity size={16} className="text-[#800000]"/> RESPONSIVE UI</span>
+    <span className="flex items-center gap-4 text-[11px] font-black text-slate-400 uppercase tracking-widest"><Globe size={16} className="text-[#800000]"/> UMPK NETWORK</span>
+    <span className="flex items-center gap-4 text-[11px] font-black text-slate-400 uppercase tracking-widest"><ShieldCheck size={16} className="text-[#800000]"/> SECURE ACCESS</span>
+  </>
+);
 
 export default App;
