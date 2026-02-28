@@ -10,7 +10,7 @@ import {
  * ATTENDX PRO - UNIVERSITY OF MIRPURKHAS (UMPK)
  * Lead Developer: Rahool
  * Project Supervisor: Sarvat Nizamani
- * Version: 33.7 (Duplicate Date Protection & Filename Optimization)
+ * Version: 34.5 (Strict File Sharing System - No Text Fallbacks)
  */
 
 const STATIC_DEPARTMENTS = {
@@ -83,7 +83,7 @@ const DEPARTMENT_SUBJECT_MAPS = {
     '2': ['OOP', 'Discrete Structure', 'Digital Logic Design', 'Presentation Skills', 'Calculus', 'Ethics', 'Islamic Studies'],
     '3': ['DSA', 'Software Engineering', 'Computer Org & Assembly', 'Linear Algebra', 'HRM'],
     '4': ['Database Systems', 'Theory of Automata', 'Probability & Stats', 'Programming Languages', 'Differential Equations', 'MIS'],
-    '5': ['Computer Networks', 'Analysis of Algorithms', 'Compiler Construction', 'Python for DS', 'Numerical Computing'],
+    '5': ['Computer Networks', 'Design & Analysis of Algorithms', 'Compiler Construction', 'Python for DS', 'Numerical Computing'],
     '6': ['Operating Systems', 'Information Security', 'Machine Learning', 'Wireless Sensor Networks', 'Technical Writing'],
     '7': ['Final Year Project - I', 'Artificial Intelligence', 'Parallel Computing', 'Web Technologies', 'Information Retrieval', 'Professional Practice'],
     '8': ['Final Year Project - 2', 'Speech Processing', 'Mobile App Development', 'E-Commerce']
@@ -158,7 +158,7 @@ const App = () => {
     localStorage.setItem('attendx_custom_depts', JSON.stringify(updated));
     setNewDeptName('');
     setIsAddingDept(false);
-    showToast("New Department Added!");
+    showToast("Department Added Successfully!");
   };
 
   const handleFinalize = () => {
@@ -168,12 +168,9 @@ const App = () => {
     let updatedRecords = [...savedRecords];
     const existingIndex = updatedRecords.findIndex(r => r.uniqueKey === uniqueKey);
 
-    // DUPLICATE DATE CHECK: Check if attendance for this date already exists
     if (existingIndex !== -1) {
       const isDuplicate = updatedRecords[existingIndex].sessions.some(s => s.date === date);
-      if (isDuplicate) {
-        return showToast("Attendance for this date is already recorded!");
-      }
+      if (isDuplicate) return showToast("Attendance for this date already exists!");
     }
 
     const presentRolls = STUDENT_LIST.filter(s => attendance[s.id] === 'Present').map(s => s.id).sort((a, b) => a - b);
@@ -192,7 +189,7 @@ const App = () => {
     
     setSavedRecords(updatedRecords);
     localStorage.setItem('attendx_v33_db', JSON.stringify(updatedRecords));
-    showToast("Authorized Successfully!");
+    showToast("Attendance Authorized!");
     
     setTimeout(() => {
       setAttendance({});
@@ -201,7 +198,7 @@ const App = () => {
       setSelectedDept(null);
       setSelectedProgramObj(null);
       setActiveTab('home');
-    }, 200);
+    }, 150);
   };
 
   const formatReportContent = (rec) => {
@@ -217,31 +214,36 @@ const App = () => {
     return report;
   };
 
+  // UPDATED: STRICT FILE SHARING SYSTEM (v34.5)
   const handleShareFile = async (rec) => {
     const reportContent = formatReportContent(rec);
     
-    // Filename: Department_Semester_Subject_Batch.txt
+    // Naming Rule: Department_Semester_Subject_Batch
     const cleanDept = rec.dept.replace(/\s+/g, '');
     const cleanSub = rec.subject.replace(/\s+/g, '_');
     const fileName = `${cleanDept}_Sem${rec.sem}_${cleanSub}_${rec.batch}.txt`;
-    
-    if (!navigator.share) return showToast("Sharing restricted in this APK.");
+
+    if (!navigator.share) {
+      showToast("Device does not support file sharing.");
+      return;
+    }
 
     try {
+      // Use .txt for maximum APK compatibility
       const blob = new Blob([reportContent], { type: 'text/plain;charset=utf-8' });
       const file = new File([blob], fileName, { type: 'text/plain' });
-      
-      if (navigator.canShare && navigator.canShare({ files: [file] })) {
-        await navigator.share({ files: [file], title: 'UMPK Attendance' });
-      } else {
-        throw new Error("File share blocked");
-      }
+
+      // In WebViews, sharing files requires explicit 'files' array
+      const shareData = {
+        files: [file],
+        title: 'Attendance Report'
+      };
+
+      await navigator.share(shareData);
+      showToast("Opening Share Menu...");
     } catch (e) {
-      try {
-        await navigator.share({ title: `Report: ${rec.subject}`, text: reportContent });
-      } catch (err) {
-        showToast("Share Menu blocked. Use COPY button.");
-      }
+      // Catching blocks from Android Security/WebView
+      showToast("Share blocked. This APK requires File Permissions.");
     }
   };
 
@@ -251,14 +253,14 @@ const App = () => {
     document.body.appendChild(el); el.select();
     document.execCommand('copy');
     document.body.removeChild(el);
-    showToast("Report Copied!");
+    showToast("Report Copied to Clipboard!");
   };
 
   const PageHeader = ({ title, showBack = true, onBack }) => (
     <div className="bg-white border-b border-slate-100 p-4 flex items-center justify-between sticky top-0 z-[1500] shadow-sm">
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-4 text-slate-900">
         {showBack && (
-          <button onClick={onBack} className="p-2 bg-slate-50 rounded-xl active:scale-90 transition-transform">
+          <button onClick={onBack} className="p-2 bg-slate-50 rounded-xl active:scale-90 transition-transform outline-none">
             <ArrowLeft size={18}/>
           </button>
         )}
@@ -277,8 +279,8 @@ const App = () => {
       <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.4em] flex items-center gap-3 justify-center">
           MADE WITH <Heart size={12} className="fill-[#800000] text-[#800000] animate-pulse" /> IN MIRPURKHAS
       </p>
-      <div className="text-[9px] font-bold text-slate-300 uppercase tracking-widest font-mono">
-          © 2026 UMPK. ALL RIGHTS RESERVED.
+      <div className="text-[9px] font-bold text-slate-300 uppercase tracking-widest font-mono text-center">
+          © 2026 UNIVERSITY OF MIRPURKHAS.
       </div>
     </div>
   );
@@ -312,13 +314,13 @@ const App = () => {
           {!selectedDept ? (
             <div className="flex-1 flex flex-col overflow-y-auto pb-32">
               <PageHeader title="UMPK PORTAL" showBack={false} />
-              <div className="p-5 flex-1 text-left">
-                <div className="bg-gradient-to-br from-[#800000] to-[#4a0404] rounded-[2.5rem] p-8 text-white shadow-2xl mb-8 relative overflow-hidden text-left">
+              <div className="p-5 flex-1 text-left text-slate-900">
+                <div className="bg-gradient-to-br from-[#800000] to-[#4a0404] rounded-[2.5rem] p-8 text-white shadow-2xl mb-8 relative overflow-hidden text-left text-white">
                    <h3 className="text-3xl font-black tracking-tighter mb-1 uppercase leading-none">Academic Grid</h3>
                    <p className="text-white/40 text-[10px] font-black uppercase tracking-[0.3em] mt-2 tracking-widest">SELECT DEPARTMENT</p>
                    <LayoutGrid className="absolute right-[-20px] bottom-[-20px] opacity-10" size={140} />
                 </div>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-2 gap-4 text-slate-900">
                   {Object.keys(allDepts).map((id) => (
                     <div key={id} onClick={() => setSelectedDept(id)} className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm flex flex-col items-center gap-3 active:scale-95 transition-all group relative cursor-pointer outline-none">
                       <div className={`w-14 h-14 ${allDepts[id].color || 'bg-slate-50 text-slate-600'} rounded-[1.5rem] flex items-center justify-center group-hover:scale-110 transition-transform shadow-inner`}>
@@ -340,7 +342,7 @@ const App = () => {
               <PageHeader title={allDepts[selectedDept]?.name} onBack={() => setSelectedDept(null)} />
               <div className="p-5 space-y-4">
                  {allDepts[selectedDept]?.programs.map((prog, i) => (
-                   <button key={i} onClick={() => setSelectedProgramObj(prog)} className="w-full bg-slate-50 p-6 rounded-[2rem] border border-slate-100 flex items-center gap-4 active:scale-95 transition-all outline-none text-left">
+                   <button key={i} onClick={() => setSelectedProgramObj(prog)} className="w-full bg-slate-50 p-6 rounded-[2rem] border border-slate-100 flex items-center gap-4 active:scale-95 transition-all outline-none text-left text-slate-900">
                       <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-[#800000] shadow-sm"><Clock size={20}/></div>
                       <span className="font-black text-slate-800 text-[11px] uppercase tracking-tight leading-tight">{prog.name}</span>
                    </button>
@@ -352,7 +354,7 @@ const App = () => {
               <PageHeader title="Select Semester" onBack={() => setSelectedProgramObj(null)} />
               <div className="p-5 grid grid-cols-2 gap-4">
                   {selectedProgramObj.sems.map(num => (
-                     <button key={num} onClick={() => setSelectedSem(num.toString())} className="bg-slate-50 p-7 rounded-[2rem] border border-slate-100 flex flex-col items-center justify-center gap-1 active:scale-95 transition-all hover:border-[#800000] outline-none">
+                     <button key={num} onClick={() => setSelectedSem(num.toString())} className="bg-slate-50 p-7 rounded-[2rem] border border-slate-100 flex flex-col items-center justify-center gap-1 active:scale-95 transition-all hover:border-[#800000] outline-none text-slate-900">
                         <span className="font-black text-4xl text-slate-900 leading-none">{num}</span>
                         <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-1">SEMESTER</span>
                      </button>
@@ -360,20 +362,21 @@ const App = () => {
               </div>
             </div>
           ) : (
-            <div className="flex-1 flex flex-col overflow-hidden h-full">
-              <div className="flex-1 overflow-y-auto scroll-smooth">
+            <div className="flex-1 flex flex-col overflow-hidden h-full relative">
+              {/* SCROLLABLE LIST AREA */}
+              <div className="flex-1 overflow-y-auto scroll-smooth pb-40">
                 <PageHeader title={`${allDepts[selectedDept]?.name} S${selectedSem}`} onBack={() => setSelectedSem(null)} />
                 
                 <div className="px-5 pt-5 pb-4 bg-slate-50 text-slate-900">
                   <div className="bg-white p-6 rounded-[2.2rem] shadow-sm border border-slate-100 space-y-4 text-left">
                       <div className="space-y-1.5">
-                        <div className="flex justify-between items-center px-1">
+                        <div className="flex justify-between items-center px-1 text-slate-900">
                           <label className="text-[9px] font-black text-[#800000] uppercase tracking-widest">COURSE</label>
                           <button onClick={() => { setIsManualSubject(!isManualSubject); setSelectedSubject(''); }} className="text-[8px] font-black text-blue-600 uppercase bg-blue-50 px-2 py-1 rounded-md active:scale-90">
                             {isManualSubject ? "LIST" : "MANUAL"}
                           </button>
                         </div>
-                        <div className="relative">
+                        <div className="relative text-slate-900 text-left">
                           {isManualSubject ? (
                             <input type="text" placeholder="Enter Course Name..." className="w-full p-4 bg-slate-50 rounded-xl outline-none font-black text-slate-800 text-sm border border-transparent focus:border-[#800000]/20 shadow-inner" value={selectedSubject} onChange={(e) => setSelectedSubject(e.target.value)} />
                           ) : (
@@ -401,11 +404,11 @@ const App = () => {
                   </div>
                   <div className="relative mt-4">
                     <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" size={16} />
-                    <input type="text" placeholder="Roll Number Search..." className="w-full p-4 pl-12 bg-white rounded-xl border border-slate-100 shadow-sm outline-none text-xs font-bold" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
+                    <input type="text" placeholder="Roll Number Search..." className="w-full p-4 pl-12 bg-white rounded-xl border border-slate-100 shadow-sm outline-none text-xs font-bold text-slate-900" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
                   </div>
                 </div>
 
-                <div className="px-5 space-y-2 pb-40 text-slate-900">
+                <div className="px-5 space-y-2 text-slate-900">
                    {STUDENT_LIST.filter(s => s.roll.includes(searchQuery)).map(s => (
                       <div key={s.id} className={`bg-white p-4 rounded-[1.8rem] border transition-all flex items-center justify-between shadow-sm ${attendance[s.id] === 'Present' ? 'border-emerald-200 bg-emerald-50/20' : attendance[s.id] === 'Absent' ? 'border-rose-200 bg-rose-50/20' : 'border-slate-100'}`}>
                         <div className="flex items-center gap-4 text-left">
@@ -421,8 +424,9 @@ const App = () => {
                 </div>
               </div>
 
-              <div className="fixed bottom-0 max-w-[450px] w-full p-8 bg-gradient-to-t from-white via-white/95 to-transparent flex justify-center z-[2000]">
-                 <button onClick={handleFinalize} className="w-full bg-[#800000] text-white py-5 rounded-[2.2rem] font-black shadow-2xl active:scale-95 transition-all uppercase tracking-widest text-xs flex items-center justify-center gap-3 border-b-4 border-black/20">
+              {/* AUTHORIZE RECORDS BUTTON - LOCKED TO VIEWPORT BOTTOM */}
+              <div className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[450px] p-8 bg-gradient-to-t from-white via-white/95 to-transparent flex justify-center z-[5500] pointer-events-none">
+                 <button onClick={handleFinalize} className="w-full bg-[#800000] text-white py-5 rounded-[2.2rem] font-black shadow-2xl active:scale-95 transition-all uppercase tracking-widest text-xs flex items-center justify-center gap-3 border-b-4 border-black/20 pointer-events-auto">
                    <ShieldCheck size={20} /> AUTHORIZE RECORDS
                  </button>
               </div>
@@ -433,9 +437,9 @@ const App = () => {
 
       {/* VIEW: RECORDS TAB */}
       {activeTab === 'records' && (
-        <div className="flex-1 flex flex-col overflow-y-auto pb-32 bg-slate-50 animate-in fade-in">
+        <div className="flex-1 flex flex-col overflow-y-auto pb-32 bg-slate-50 animate-in fade-in text-slate-900">
           <PageHeader title="HISTORY" showBack={false} />
-          <div className="p-5 space-y-4 flex-1 text-slate-900">
+          <div className="p-5 space-y-4 flex-1">
             {savedRecords.length === 0 ? (
               <div className="text-center py-24 opacity-20 flex flex-col items-center">
                 <FileText size={60} className="mb-4 text-slate-400" />
@@ -443,18 +447,18 @@ const App = () => {
               </div>
             ) : (
               savedRecords.map((rec) => (
-                <div key={rec.uniqueKey} className="bg-white p-5 rounded-[2.2rem] shadow-sm border border-slate-100 space-y-4">
+                <div key={rec.uniqueKey} className="bg-white p-5 rounded-[2.2rem] shadow-sm border border-slate-100 space-y-4 text-slate-900">
                    <div className="flex justify-between items-start text-left">
                       <div onClick={() => setViewingRecord(rec)} className="flex-1 cursor-pointer">
                         <h4 className="font-black text-slate-900 text-[15px] uppercase mb-1 leading-tight">{rec.subject}</h4>
                         <div className="flex flex-col gap-1 text-[8px] font-black text-slate-400 uppercase tracking-widest">
                           <span>{rec.dept} • {rec.batch}</span>
-                          <span className="text-[#800000]">Recorded Sessions: {rec.sessions.length}</span>
+                          <span className="text-[#800000]">Sessions: {rec.sessions.length}</span>
                         </div>
                       </div>
                       <div className="flex gap-2">
                         <button onClick={() => handleShareFile(rec)} className="p-2.5 bg-slate-50 rounded-xl text-slate-400 active:text-emerald-600 transition-all active:scale-90 shadow-sm"><Share2 size={18}/></button>
-                        <button onClick={() => {if(window.confirm("Delete record?")) {const upd = savedRecords.filter(r => r.uniqueKey !== rec.uniqueKey); setSavedRecords(upd); localStorage.setItem('attendx_v33_db', JSON.stringify(upd)); showToast("Deleted");}}} className="p-2.5 bg-slate-50 rounded-xl text-slate-200 active:text-rose-600 active:scale-90 shadow-sm"><Trash2 size={18}/></button>
+                        <button onClick={() => {if(window.confirm("Delete?")) {const upd = savedRecords.filter(r => r.uniqueKey !== rec.uniqueKey); setSavedRecords(upd); localStorage.setItem('attendx_v33_db', JSON.stringify(upd)); showToast("Deleted");}}} className="p-2.5 bg-slate-50 rounded-xl text-slate-200 active:text-rose-600 active:scale-90 shadow-sm"><Trash2 size={18}/></button>
                       </div>
                    </div>
                    <button onClick={() => setViewingRecord(rec)} className="w-full bg-[#800000]/5 text-[#800000] py-3.5 rounded-xl font-black text-[9px] uppercase tracking-[0.2em] active:bg-[#800000] active:text-white transition-all shadow-sm outline-none">PREVIEW REPORT</button>
@@ -468,21 +472,21 @@ const App = () => {
 
       {/* VIEW: INFO TAB */}
       {activeTab === 'info' && (
-        <div className="flex-1 flex flex-col overflow-y-auto pb-32 bg-white animate-in fade-in">
+        <div className="flex-1 flex flex-col overflow-y-auto pb-32 bg-white animate-in fade-in text-slate-900">
           <PageHeader title="INTELLIGENCE" showBack={false} />
-          <div className="p-5 space-y-6 flex-1 text-center">
+          <div className="p-5 space-y-6 flex-1 text-center text-slate-900">
              <div className="bg-gradient-to-br from-[#800000] to-[#4a0404] rounded-[2.5rem] p-10 text-white shadow-2xl relative overflow-hidden flex flex-col items-center">
-                <div className="w-20 h-20 bg-white/10 backdrop-blur-md border border-white/20 rounded-[1.8rem] flex items-center justify-center mb-4 shadow-lg">
-                   <BookOpen size={40} className="text-white" />
+                <div className="w-20 h-20 bg-white/10 backdrop-blur-md border border-white/20 rounded-[1.8rem] flex items-center justify-center mb-4 shadow-lg text-white">
+                   <BookOpen size={40} />
                 </div>
                 <h3 className="text-3xl font-black tracking-tighter mb-1 uppercase leading-none">AttendX Pro</h3>
-                <p className="text-[9px] font-bold text-white/50 uppercase tracking-[0.3em] mt-2">v33.7 Final Build</p>
+                <p className="text-[9px] font-bold text-white/50 uppercase tracking-[0.3em] mt-2">v34.5 Final Build</p>
                 <Sparkles size={80} className="absolute top-10 right-10 text-white/5" />
              </div>
 
-             <div className="space-y-4 text-left text-slate-900">
-                <div className="bg-slate-50 rounded-[2.2rem] p-8 border border-slate-100 shadow-sm relative overflow-hidden">
-                   <p className="text-slate-400 text-[9px] font-black uppercase tracking-[0.2em] mb-4">SYSTEM DEVELOPED BY</p>
+             <div className="space-y-4 text-left">
+                <div className="bg-slate-50 rounded-[2.2rem] p-8 border border-slate-100 shadow-sm relative overflow-hidden text-slate-900 text-left">
+                   <p className="text-slate-400 text-[9px] font-black uppercase tracking-[0.2em] mb-4 text-left">SYSTEM DEVELOPED BY</p>
                    <h2 className="text-[18px] font-black text-slate-800 leading-tight uppercase tracking-tight mb-6">DEPARTMENT OF <span className="text-[#800000]">COMPUTER SCIENCE</span></h2>
                    <div className="flex items-center gap-3 bg-white p-3 rounded-2xl border border-slate-100 shadow-sm">
                       <div className="w-10 h-10 bg-[#800000] rounded-xl flex items-center justify-center text-white"><UserCircle size={24}/></div>
@@ -493,8 +497,8 @@ const App = () => {
                    </div>
                 </div>
 
-                <div className="p-6 bg-white border border-slate-100 rounded-[2.2rem] flex items-center gap-5 shadow-sm">
-                   <div className="w-12 h-12 bg-red-50 text-[#800000] rounded-xl flex items-center justify-center shadow-inner"><Award size={28} /></div>
+                <div className="p-6 bg-white border border-slate-100 rounded-[2.2rem] flex items-center gap-5 shadow-sm text-slate-900">
+                   <div className="w-12 h-12 bg-red-50 text-[#800000] rounded-xl flex items-center justify-center shadow-inner text-[#800000]"><Award size={28} /></div>
                    <div>
                       <p className="text-[8px] font-black text-red-300 uppercase tracking-widest mb-1">PROJECT SUPERVISOR</p>
                       <h4 className="text-lg font-black text-slate-900 leading-none tracking-tight">Sarvat Nizamani</h4>
@@ -508,8 +512,6 @@ const App = () => {
                     <MarqueeContent />
                   </div>
                 </div>
-
-                <p className="font-bold text-slate-400 text-[10px] mt-2 uppercase tracking-widest text-center">University of Mirpurkhas (UMPK)</p>
              </div>
           </div>
           <GlobalFooter />
@@ -527,15 +529,15 @@ const App = () => {
                 </div>
                 <button onClick={() => setViewingRecord(null)} className="p-2.5 bg-slate-50 rounded-full active:scale-90 text-slate-900"><X size={20}/></button>
              </div>
-             <div className="bg-slate-50 p-6 rounded-[2.2rem] font-mono text-[12px] text-slate-700 leading-relaxed overflow-y-auto whitespace-pre border border-slate-100 flex-1 my-4 shadow-inner text-left scroll-smooth">
+             <div className="bg-slate-50 p-6 rounded-[2.2rem] font-mono text-[12px] text-slate-700 leading-relaxed overflow-y-auto whitespace-pre border border-slate-100 flex-1 my-4 shadow-inner text-left scroll-smooth text-slate-900">
                 {formatReportContent(viewingRecord)}
              </div>
              <div className="grid grid-cols-2 gap-3">
                <button onClick={() => copyToClipboard(formatReportContent(viewingRecord))} className="bg-slate-100 text-slate-700 py-5 rounded-[1.8rem] font-black text-[10px] uppercase flex items-center justify-center gap-2 active:scale-95 border border-slate-200 outline-none shadow-sm">
                  <Copy size={16}/> COPY TEXT
                </button>
-               <button onClick={() => handleShareFile(viewingRecord)} className="bg-slate-900 text-white py-5 rounded-[1.8rem] font-black text-[10px] uppercase flex items-center justify-center gap-2 active:scale-95 shadow-xl outline-none">
-                 <Share2 size={16}/> SHARE DOC
+               <button onClick={() => handleShareFile(viewingRecord)} className="bg-slate-900 text-white py-5 rounded-[1.8rem] font-black text-[10px] uppercase flex items-center justify-center gap-2 active:scale-95 shadow-xl outline-none border-b-4 border-black/20">
+                 <Share2 size={16}/> SHARE .TXT
                </button>
              </div>
           </div>
@@ -545,7 +547,7 @@ const App = () => {
       {/* ADD DEPT MODAL */}
       {isAddingDept && (
         <div className="fixed inset-0 bg-slate-900/90 backdrop-blur-xl z-[7000] flex items-center justify-center p-6 animate-in fade-in">
-           <div className="bg-white w-full max-w-[340px] rounded-[3rem] p-8 space-y-6 animate-in zoom-in-95 shadow-2xl">
+           <div className="bg-white w-full max-w-[340px] rounded-[3rem] p-8 space-y-6 animate-in zoom-in-95 shadow-2xl text-slate-900">
               <div className="text-center">
                  <div className="w-16 h-16 bg-slate-100 text-[#800000] rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-inner text-[#800000]"><PlusCircle size={32}/></div>
                  <h3 className="font-black text-2xl uppercase tracking-tighter text-slate-800 text-center leading-none">Add Department</h3>
@@ -559,21 +561,23 @@ const App = () => {
         </div>
       )}
 
-      {/* NAVIGATION TABS */}
-      <div className="fixed bottom-0 max-w-[450px] w-full bg-white/95 backdrop-blur-3xl border-t border-slate-100 px-10 py-6 flex justify-around items-center rounded-t-[3.2rem] shadow-2xl z-[1500]">
-        <button onClick={() => {setActiveTab('home'); setViewingRecord(null);}} className={`flex flex-col items-center gap-2 transition-all ${activeTab === 'home' ? 'text-[#800000] scale-110' : 'text-slate-300'} outline-none`}>
-          <div className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-all ${activeTab === 'home' ? 'bg-red-50 shadow-sm' : 'bg-transparent'}`}><Home size={26} fill={activeTab === 'home' ? "currentColor" : "none"} /></div>
-          <span className="text-[9px] font-black uppercase tracking-[0.1em]">PORTAL</span>
-        </button>
-        <button onClick={() => {setActiveTab('records'); setSelectedDept(null); setViewingRecord(null);}} className={`flex flex-col items-center gap-2 transition-all ${activeTab === 'records' ? 'text-[#800000] scale-110' : 'text-slate-300'} outline-none`}>
-          <div className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-all ${activeTab === 'records' ? 'bg-red-50 shadow-sm' : 'bg-transparent'}`}><History size={26} /></div>
-          <span className="text-[9px] font-black uppercase tracking-[0.1em]">RECORDS</span>
-        </button>
-        <button onClick={() => {setActiveTab('info'); setSelectedDept(null); setViewingRecord(null);}} className={`flex flex-col items-center gap-2 transition-all ${activeTab === 'info' ? 'text-[#800000] scale-110' : 'text-slate-300'} outline-none`}>
-          <div className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-all ${activeTab === 'info' ? 'bg-[#800000] text-white shadow-lg' : 'bg-transparent'}`}><Info size={26} fill={activeTab === 'info' ? "currentColor" : "none"} /></div>
-          <span className="text-[9px] font-black uppercase tracking-[0.1em]">ABOUT</span>
-        </button>
-      </div>
+      {/* GLOBAL TAB NAVIGATION */}
+      {!selectedSem && (
+        <div className="fixed bottom-0 max-w-[450px] w-full bg-white/95 backdrop-blur-3xl border-t border-slate-100 px-10 py-6 flex justify-around items-center rounded-t-[3.2rem] shadow-2xl z-[4000]">
+          <button onClick={() => {setActiveTab('home'); setViewingRecord(null); setSelectedDept(null); setSelectedProgramObj(null);}} className={`flex flex-col items-center gap-2 transition-all ${activeTab === 'home' ? 'text-[#800000] scale-110' : 'text-slate-300'} outline-none`}>
+            <div className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-all ${activeTab === 'home' ? 'bg-red-50 shadow-sm' : 'bg-transparent'}`}><Home size={26} fill={activeTab === 'home' ? "currentColor" : "none"} /></div>
+            <span className="text-[9px] font-black uppercase tracking-[0.1em]">PORTAL</span>
+          </button>
+          <button onClick={() => {setActiveTab('records'); setSelectedDept(null); setViewingRecord(null);}} className={`flex flex-col items-center gap-2 transition-all ${activeTab === 'records' ? 'text-[#800000] scale-110' : 'text-slate-300'} outline-none`}>
+            <div className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-all ${activeTab === 'records' ? 'bg-red-50 shadow-sm' : 'bg-transparent'}`}><History size={26} /></div>
+            <span className="text-[9px] font-black uppercase tracking-[0.1em]">RECORDS</span>
+          </button>
+          <button onClick={() => {setActiveTab('info'); setSelectedDept(null); setViewingRecord(null);}} className={`flex flex-col items-center gap-2 transition-all ${activeTab === 'info' ? 'text-[#800000] scale-110' : 'text-slate-300'} outline-none`}>
+            <div className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-all ${activeTab === 'info' ? 'bg-[#800000] text-white shadow-lg' : 'bg-transparent'}`}><Info size={26} fill={activeTab === 'info' ? "currentColor" : "none"} /></div>
+            <span className="text-[9px] font-black uppercase tracking-[0.1em]">ABOUT</span>
+          </button>
+        </div>
+      )}
 
       <style dangerouslySetInnerHTML={{ __html: `
         @keyframes marquee-final { 
